@@ -5,10 +5,3 @@ version = 3
 [[package]]
 name = "bmc-os"
 version = "0.1.0"
-dependencies = [
- "bootloader",
-]
-
-[[package]]
-name = "bootloader"
-version = "0.1.0"
