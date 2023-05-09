@@ -1,7 +1,7 @@
 #!/usr/bin/sh
 set -e
 cd os
-cargo build --target-dir ../target --release
+cargo rustc --target-dir ../target --release -- --emit=obj
 cd ..
 
 # nasm bootloader.asm -f bin -o ../../bmc-os.img
@@ -14,7 +14,7 @@ cd src/asm
 nasm -f elf32 bootloader.asm -f bin -o /tmp/boot_sect.bin
 nasm -f elf32 kernel_entry.asm -f elf -o /tmp/kernel_entry.bin
 cd ../..
-ld -m elf_i386 -o /tmp/kernel.bin -Ttext 0x1000 /tmp/kernel_entry.bin target/x86/release/os --oformat binary
+ld -m elf_i386 -o /tmp/kernel.bin -Ttext 0x1000 /tmp/kernel_entry.bin target/x86/release/deps/*.o --ignore-unresolved-symbol _GLOBAL_OFFSET_TABLE_ --oformat binary
 cat /tmp/boot_sect.bin /tmp/kernel.bin > bmc-os.img
 
 
