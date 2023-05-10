@@ -14,6 +14,8 @@ disk_load:
 disk_error:
     mov bx, DISK_ERROR_MSG
     call print_string
+    mov dh, ah
+    call print_hex
     jmp $
 
-DISK_ERROR_MSG db "Disk read error !", 0
+DISK_ERROR_MSG db "Disk read error Error Code:", 0

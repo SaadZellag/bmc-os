@@ -1,3 +1,5 @@
 target
 bmc-os.img
 .vscode
+/objs
+/bins

@@ -1,5 +1,5 @@
 [org 0x7c00]
-KERNEL_OFFSET equ 0x1000
+KERNEL_OFFSET equ 0x7F00
     mov [BOOT_DRIVE], dl
     mov bp, 0x9000
     mov sp, bp
@@ -9,18 +9,19 @@ KERNEL_OFFSET equ 0x1000
     call switch_to_pm
     jmp $
 
-%include "print_string.asm"
-%include "disk_load.asm"
-%include "gdt.asm"
-%include "print_string_pm.asm"
-%include "switch_to_pm.asm"
+%include "src/asm/print_string.asm"
+%include "src/asm/print_hex.asm"
+%include "src/asm/disk_load.asm"
+%include "src/asm/gdt.asm"
+%include "src/asm/print_string_pm.asm"
+%include "src/asm/switch_to_pm.asm"
 
 [bits 16]
 load_kernel:
     mov bx, MSG_LOAD_KERNEL
     call print_string
     mov bx, KERNEL_OFFSET
-    mov dh, 54
+    mov dh, 100
     mov dl, [BOOT_DRIVE]
     call disk_load
     ret
