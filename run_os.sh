@@ -9,6 +9,6 @@ killgroup(){
 }
 
 cargo run $1 & # In case of release mode added
-sleep 0.5
+sleep 1
 vncviewer :5901 &
 wait
