@@ -1,12 +1,29 @@
 #![no_std]
 #![no_main]
+#![feature(custom_test_frameworks)]
+#![test_runner(bmc_os::tests::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 
-mod display;
+use bmc_os::println;
 
 use core::panic::PanicInfo;
 
+// Should never be called, but just to satisty compiler
+#[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    use bmc_os::tests::test_panic_handler;
+    test_panic_handler(info)
+}
+
+// This is the panic called
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    use bmc_os::display::Color;
+    use bmc_os::set_color;
+
+    set_color!(Color::Red, Color::Black);
     println!("{}", info);
     loop {}
 }
@@ -16,7 +33,7 @@ pub extern "C" fn _start() -> ! {
     for i in 0..20 {
         println!("Hello index {}", i);
     }
-    panic!("Hello I panicked here");
+    // panic!("Hello I panicked here");
 
     loop {}
 }

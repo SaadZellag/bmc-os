@@ -31,7 +31,7 @@ pub enum Color {
 pub struct ColorCode(u8);
 
 impl ColorCode {
-    fn new(foreground: Color, background: Color) -> Self {
+    pub fn new(foreground: Color, background: Color) -> Self {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
@@ -47,7 +47,19 @@ macro_rules! println {
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
+#[macro_export]
+macro_rules! set_color {
+    ($foreground:expr, $background:expr) => {{
+        use $crate::display::ColorCode;
+        $crate::display::_set_color(ColorCode::new($foreground, $background));
+    }};
+}
+
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+}
+
+pub fn _set_color(color: ColorCode) {
+    WRITER.lock().set_color(color);
 }

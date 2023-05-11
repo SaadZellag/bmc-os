@@ -8,7 +8,7 @@ killgroup(){
   kill 0
 }
 
-cargo run $1 & # In case of release mode added
+cargo test $1 & # In case of release mode added
 sleep 1
 vncviewer :5900 &
 wait
