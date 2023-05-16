@@ -52,6 +52,10 @@ impl Writer {
         self.color_code = color;
     }
 
+    pub fn get_color(&self) -> ColorCode {
+        self.color_code
+    }
+
     fn new_line(&mut self) {
         self.index = (self.index / BUFFER_WIDTH + 1) * BUFFER_WIDTH
     }

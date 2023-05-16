@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod sample_test;
 
 use core::panic::PanicInfo;

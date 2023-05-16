@@ -53,6 +53,14 @@ macro_rules! set_color {
         use $crate::display::ColorCode;
         $crate::display::_set_color(ColorCode::new($foreground, $background));
     }};
+    ($color_code: expr) => {{
+        use $crate::display::ColorCode;
+        $crate::display::_set_color($color_code);
+    }};
+}
+
+pub fn get_current_color() -> ColorCode {
+    WRITER.lock().get_color()
 }
 
 pub fn _print(args: fmt::Arguments) {

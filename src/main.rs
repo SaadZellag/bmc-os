@@ -30,10 +30,15 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    bmc_os::init();
+
     for i in 0..20 {
         println!("Hello index {}", i);
     }
+
+    x86_64::instructions::interrupts::int3();
     // panic!("Hello I panicked here");
+    println!("Henlo");
 
     loop {}
 }
