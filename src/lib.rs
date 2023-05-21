@@ -6,6 +6,7 @@
 #![reexport_test_harness_main = "test_main"]
 
 pub mod display;
+pub mod gdt;
 pub mod interrupts;
 pub mod tests;
 
@@ -29,5 +30,6 @@ pub extern "C" fn _start() -> ! {
 }
 
 pub fn init() {
+    gdt::init();
     interrupts::init_idt();
 }
