@@ -32,7 +32,7 @@ fn panic(info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     bmc_os::init();
 
-    for i in 0..14 {
+    for i in 0..15 {
         println!("Hello index {}", i);
     }
 

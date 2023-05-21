@@ -66,6 +66,12 @@ impl Writer {
                 self.buffer.chars[i][j] = self.buffer.chars[i + 1][j];
             }
         }
+        for i in 0..BUFFER_WIDTH {
+            self.buffer.chars[BUFFER_HEIGHT - 1][i] = ScreenChar {
+                ascii_character: b' ',
+                color_code: ColorCode(0),
+            };
+        }
         self.index -= BUFFER_WIDTH;
     }
 }
