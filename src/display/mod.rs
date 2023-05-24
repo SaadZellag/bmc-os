@@ -1,5 +1,7 @@
 use core::fmt;
 
+use x86_64::instructions::interrupts;
+
 use crate::display::vga_buffer::WRITER;
 
 mod vga_buffer;
@@ -64,7 +66,9 @@ pub fn get_current_color() -> ColorCode {
 
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 pub fn _set_color(color: ColorCode) {
