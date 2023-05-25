@@ -1,41 +1,32 @@
 use core::fmt;
 
+use lazy_static::lazy_static;
+use spin::Mutex;
+use vga::{
+    colors::{Color16, TextModeColor},
+    drawing::Point,
+    vga::VGA,
+    writers::{Graphics320x240x256, Graphics640x480x16, GraphicsWriter, Text80x25, TextWriter},
+};
 use x86_64::instructions::interrupts;
 
-use crate::display::vga_buffer::WRITER;
+use crate::display::{color::Color256, graphics::PALETTE, text::WRITER};
 
-mod vga_buffer;
+pub mod color;
+pub mod graphics;
+mod text;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Color {
-    Black = 0,
-    Blue = 1,
-    Green = 2,
-    Cyan = 3,
-    Red = 4,
-    Magenta = 5,
-    Brown = 6,
-    LightGray = 7,
-    DarkGray = 8,
-    LightBlue = 9,
-    LightGreen = 10,
-    LightCyan = 11,
-    LightRed = 12,
-    Pink = 13,
-    Yellow = 14,
-    White = 15,
+enum Mode {
+    Text,
+    Graphics,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
-pub struct ColorCode(u8);
-
-impl ColorCode {
-    pub fn new(foreground: Color, background: Color) -> Self {
-        ColorCode((background as u8) << 4 | (foreground as u8))
-    }
+lazy_static! {
+    static ref CURRENT_MODE: Mutex<Mode> = Mutex::new(Mode::Text);
+    static ref TEXT: Mutex<Text80x25> = Mutex::new(Text80x25::new());
+    static ref DRAWER: Mutex<Graphics320x240x256> = Mutex::new(Graphics320x240x256::new());
+    static ref CURRENT_GRAPHICS_COLOR: Mutex<Color256> = Mutex::new(Color256::White);
 }
 
 #[macro_export]
@@ -50,27 +41,75 @@ macro_rules! println {
 }
 
 #[macro_export]
-macro_rules! set_color {
+macro_rules! set_text_color {
     ($foreground:expr, $background:expr) => {{
-        use $crate::display::ColorCode;
-        $crate::display::_set_color(ColorCode::new($foreground, $background));
+        use vga::colors::TextModeColor;
+        $crate::display::_set_text_color(TextModeColor::new($foreground, $background));
     }};
     ($color_code: expr) => {{
-        $crate::display::_set_color($color_code);
+        $crate::display::_set_text_color($color_code);
     }};
 }
 
-pub fn get_current_color() -> ColorCode {
+pub fn draw_line(from: Point<isize>, to: Point<isize>) {
+    interrupts::without_interrupts(|| {
+        ensure_graphics_mode();
+        DRAWER
+            .lock()
+            .draw_line(from, to, CURRENT_GRAPHICS_COLOR.lock().as_u8());
+    });
+}
+
+pub fn draw_pixel(x: usize, y: usize) {
+    interrupts::without_interrupts(|| {
+        ensure_graphics_mode();
+        DRAWER
+            .lock()
+            .set_pixel(x, y, CURRENT_GRAPHICS_COLOR.lock().as_u8());
+    });
+}
+
+pub fn set_graphics_color(color: Color256) {
+    *CURRENT_GRAPHICS_COLOR.lock() = color;
+}
+
+pub fn get_current_text_color() -> TextModeColor {
     WRITER.lock().get_color()
 }
 
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     interrupts::without_interrupts(|| {
+        ensure_text_mode();
         WRITER.lock().write_fmt(args).unwrap();
     });
 }
 
-pub fn _set_color(color: ColorCode) {
+pub fn _set_text_color(color: TextModeColor) {
     WRITER.lock().set_color(color);
+}
+
+fn ensure_text_mode() {
+    let mut current_mode = CURRENT_MODE.lock();
+    if *current_mode != Mode::Text {
+        let text = TEXT.lock();
+        text.set_mode();
+        text.clear_screen();
+        *current_mode = Mode::Text;
+    }
+}
+
+fn ensure_graphics_mode() {
+    let mut current_mode: spin::MutexGuard<Mode> = CURRENT_MODE.lock();
+    if *current_mode != Mode::Graphics {
+        let drawer = DRAWER.lock();
+        drawer.set_mode();
+        {
+            // In a block to drop it directly
+            let mut vga = VGA.lock();
+            vga.color_palette_registers.load_palette(&PALETTE);
+        }
+        drawer.clear_screen(Color256::Black.as_u8());
+        *current_mode = Mode::Graphics;
+    }
 }

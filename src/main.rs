@@ -4,7 +4,18 @@
 #![test_runner(bmc_os::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use bmc_os::println;
+use bmc_os::{
+    display::{color::Color256, draw_line, draw_pixel, graphics::PALETTE, set_graphics_color},
+    println,
+};
+use vga::{
+    colors::Color16,
+    vga::VGA,
+    writers::{
+        Graphics320x200x256, Graphics320x240x256, Graphics640x480x16, GraphicsWriter, Text80x25,
+        TextWriter,
+    },
+};
 
 use core::panic::PanicInfo;
 
@@ -20,10 +31,9 @@ fn panic(info: &PanicInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    use bmc_os::display::Color;
-    use bmc_os::set_color;
+    use bmc_os::set_text_color;
 
-    set_color!(Color::Red, Color::Black);
+    set_text_color!(Color16::Red, Color16::Black);
     println!("{}", info);
     loop {}
 }
@@ -32,13 +42,23 @@ fn panic(info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     bmc_os::init();
 
-    for i in 0..15 {
-        println!("Hello index {}", i);
+    let morbius = include_bytes!("../its-morbin-time.rgb");
+
+    for (i, rgb) in morbius.chunks_exact(3).enumerate() {
+        let color = Color256::new(rgb[0] / 32, rgb[1] / 32, rgb[2] / 64);
+        set_graphics_color(color);
+        let x = i % 320;
+        let y = i / 320;
+        draw_pixel(x, y);
     }
 
-    x86_64::instructions::interrupts::int3();
-    // panic!("Hello I panicked here");
-    // println!("Henlo");
+    // for i in 0..15 {
+    //     println!("Hello index {}", i);
+    // }
+
+    // x86_64::instructions::interrupts::int3();
+
+    // draw_line((10, 10), (10, 100));
 
     loop {}
 }

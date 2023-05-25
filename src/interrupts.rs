@@ -1,10 +1,8 @@
-use crate::{
-    display::{get_current_color, Color},
-    gdt, print, println, set_color,
-};
+use crate::{display::get_current_text_color, gdt, print, println, set_text_color};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin;
+use vga::colors::Color16;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -50,10 +48,10 @@ pub fn init_idt() {
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
-    let color = get_current_color();
-    set_color!(Color::Yellow, Color::Black);
+    let color = get_current_text_color();
+    set_text_color!(Color16::Yellow, Color16::Black);
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
-    set_color!(color);
+    set_text_color!(color);
 }
 
 extern "x86-interrupt" fn double_fault_handler(

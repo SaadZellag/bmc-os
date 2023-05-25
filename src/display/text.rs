@@ -1,12 +1,12 @@
-use crate::display::{Color, ColorCode};
 use lazy_static::lazy_static;
 use spin::Mutex;
+use vga::colors::{Color16, TextModeColor};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
     ascii_character: u8,
-    color_code: ColorCode,
+    color_code: TextModeColor,
 }
 
 const BUFFER_HEIGHT: usize = 25;
@@ -19,7 +19,7 @@ struct Buffer {
 
 pub struct Writer {
     index: usize,
-    color_code: ColorCode,
+    color_code: TextModeColor,
     buffer: &'static mut Buffer,
 }
 
@@ -48,11 +48,11 @@ impl Writer {
         }
     }
 
-    pub fn set_color(&mut self, color: ColorCode) {
+    pub fn set_color(&mut self, color: TextModeColor) {
         self.color_code = color;
     }
 
-    pub fn get_color(&self) -> ColorCode {
+    pub fn get_color(&self) -> TextModeColor {
         self.color_code
     }
 
@@ -69,7 +69,7 @@ impl Writer {
         for i in 0..BUFFER_WIDTH {
             self.buffer.chars[BUFFER_HEIGHT - 1][i] = ScreenChar {
                 ascii_character: b' ',
-                color_code: ColorCode(0),
+                color_code: TextModeColor::new(Color16::Black, Color16::Black),
             };
         }
         self.index -= BUFFER_WIDTH;
@@ -88,7 +88,7 @@ impl fmt::Write for Writer {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         index: 0,
-        color_code: ColorCode::new(Color::White, Color::Black),
+        color_code: TextModeColor::new(Color16::White, Color16::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
