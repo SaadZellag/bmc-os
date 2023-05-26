@@ -25,7 +25,7 @@ enum Mode {
 lazy_static! {
     static ref CURRENT_MODE: Mutex<Mode> = Mutex::new(Mode::Text);
     static ref TEXT: Mutex<Text80x25> = Mutex::new(Text80x25::new());
-    static ref DRAWER: Mutex<Graphics320x240x256> = Mutex::new(Graphics320x240x256::new());
+    pub static ref DRAWER: Mutex<Graphics320x240x256> = Mutex::new(Graphics320x240x256::new());
     static ref CURRENT_GRAPHICS_COLOR: Mutex<Color256> = Mutex::new(Color256::White);
 }
 
@@ -67,6 +67,16 @@ pub fn draw_pixel(x: usize, y: usize) {
             .lock()
             .set_pixel(x, y, CURRENT_GRAPHICS_COLOR.lock().as_u8());
     });
+}
+
+pub fn draw_bulk<F, R>(func: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    interrupts::without_interrupts(|| {
+        ensure_graphics_mode();
+        func()
+    })
 }
 
 pub fn set_graphics_color(color: Color256) {
