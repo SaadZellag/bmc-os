@@ -7,9 +7,9 @@
 use bmc_os::{
     display::{
         color::Color256,
-        draw_line, draw_pixel,
-        graphics::{draw_shape, Triangle, PALETTE},
-        set_graphics_color, DRAWER,
+        ensure_graphics_mode,
+        graphics::{draw_shape, flush_buffer, set_pixel, Triangle, PALETTE},
+        set_graphics_color,
     },
     println,
 };
@@ -61,27 +61,29 @@ pub extern "C" fn _start() -> ! {
 
     let badapple = include_bytes!("../badapple.raw");
 
-    draw_pixel(0, 0);
+    println!("LUL");
 
-    interrupts::without_interrupts(|| {
-        let drawer = DRAWER.lock();
-        let frame_buffer = drawer.get_frame_buffer();
-        for (i, rgb) in badapple.chunks_exact(3).enumerate() {
-            let color = Color256::new(rgb[0] / 32, rgb[1] / 32, rgb[2] / 64);
-            // set_graphics_color(color);
-            let x = i % 320;
-            let y = (i / 320) % 240;
-            drawer.set_pixel(x, y, color.as_u8());
-            // unsafe {
-            //     let offset = (320 * y + x) / 4;
-            //     // let plane_mask = 0x1 << (x & 3);
-            //     // VGA.lock()
-            //     //     .sequencer_registers
-            //     //     .set_plane_mask(PlaneMask::from_bits(plane_mask).unwrap());
-            //     frame_buffer.add(offset).write_volatile(color.as_u8());
-            // }
+    // interrupts::without_interrupts(|| {
+    for (i, rgb) in badapple.chunks_exact(3).enumerate() {
+        let color = Color256::new(rgb[0] / 32, rgb[1] / 32, rgb[2] / 64);
+        // set_graphics_color(color);
+        let x = i % 320;
+        let y = (i / 320) % 240;
+        set_pixel(x, y, color);
+
+        if x == 0 && y == 0 {
+            flush_buffer();
         }
-    });
+        // unsafe {
+        //     let offset = (320 * y + x) / 4;
+        //     // let plane_mask = 0x1 << (x & 3);
+        //     // VGA.lock()
+        //     //     .sequencer_registers
+        //     //     .set_plane_mask(PlaneMask::from_bits(plane_mask).unwrap());
+        //     frame_buffer.add(offset).write_volatile(color.as_u8());
+        // }
+    }
+    // });
 
     println!("Haha yes");
 
