@@ -14,6 +14,7 @@ use crate::display::{color::Color256, graphics::PALETTE, text::WRITER};
 
 pub mod color;
 pub mod graphics;
+pub mod sprite;
 mod text;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

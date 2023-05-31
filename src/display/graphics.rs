@@ -1,3 +1,4 @@
+use bresenham::Bresenham;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use vga::{
@@ -9,13 +10,18 @@ use vga::{
 };
 use x86_64::instructions::interrupts;
 
-use crate::display::{color::Color256, ensure_graphics_mode, CURRENT_GRAPHICS_COLOR, DRAWER};
+use crate::{
+    display::{
+        color::Color256, ensure_graphics_mode, sprite::Sprite, CURRENT_GRAPHICS_COLOR, DRAWER,
+    },
+    println,
+};
 
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 const SIZE: usize = WIDTH * HEIGHT;
 
-static mut BUFFER: [u8; SIZE] = [0; SIZE];
+static mut BUFFER: [Color256; SIZE] = [Color256::Black; SIZE];
 
 pub const PALETTE: [u8; PALETTE_SIZE] = {
     let mut palette = [0_u8; PALETTE_SIZE];
@@ -98,14 +104,43 @@ where
     }
 }
 
-pub fn set_pixel(x: usize, y: usize, color: Color256) {
-    unsafe {
-        BUFFER[y * WIDTH + x] = color.as_u8();
+#[macro_export]
+macro_rules! set_pixel {
+    ($x:expr, $y:expr) => {{
+        $crate::display::graphics::_set_pixel_with_lock($x, $y);
+    }};
+
+    ($x:expr, $y:expr, $color:expr) => {{
+        $crate::display::graphics::_set_pixel($x, $y, $color);
+    }};
+}
+
+pub fn draw_sprite(sprite: &Sprite, x: usize, y: usize) {
+    let itt = sprite.to_absolute_points(x, y);
+
+    for pixel in itt {
+        let (x, y) = pixel.pos;
+        let current_color = get_pixel(x, y);
+        let new_color =
+            current_color.apply_alpha(255 - pixel.alpha) + pixel.color.apply_alpha(pixel.alpha);
+        // println!(
+        //     "{:?} + {:?} for alpha={}: {:?}",
+        //     current_color, pixel.color, pixel.alpha, new_color
+        // );
+        // if new_color.r != 0 && new_color.r != 255 {
+        //     loop {}
+        // }
+        set_pixel!(x, y, new_color);
     }
 }
 
 pub fn draw_line(start: Point<usize>, end: Point<usize>) {
-    todo!()
+    let color = *CURRENT_GRAPHICS_COLOR.lock();
+    let start = (start.0 as isize, start.1 as isize);
+    let end = (end.0 as isize, end.1 as isize);
+    for (x, y) in Bresenham::new(start, end) {
+        set_pixel!(x as usize, y as usize, color)
+    }
 }
 
 pub fn flush_buffer() {
@@ -126,8 +161,23 @@ pub fn flush_buffer() {
         for j in 0..(SIZE / 4) {
             unsafe {
                 let color = BUFFER[j * 4 + i];
-                frame_buffer.add(j).write_volatile(color);
+                frame_buffer.add(j).write_volatile(color.as_u8());
             }
         }
     }
+}
+
+pub fn _set_pixel_with_lock(x: usize, y: usize) {
+    let color = *CURRENT_GRAPHICS_COLOR.lock();
+    _set_pixel(x, y, color);
+}
+
+pub fn _set_pixel(x: usize, y: usize, color: Color256) {
+    unsafe {
+        BUFFER[y * WIDTH + x] = color;
+    }
+}
+
+fn get_pixel(x: usize, y: usize) -> Color256 {
+    unsafe { BUFFER[y * WIDTH + x] }
 }
