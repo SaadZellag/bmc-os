@@ -1,10 +1,9 @@
-use core::iter::FromIterator;
-
 use arrayvec::ArrayVec;
+use core::iter::FromIterator;
 
 use crate::{engine::EVALUATOR, search::position::Position, utils::tablesize::TableSize, Eval};
 
-use cozy_chess::Move;
+use cozy_chess::{Move, Square};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EntryType {
@@ -23,33 +22,41 @@ pub struct TTEntry {
     pub mv: Move,
 }
 
-impl Default for TTEntry {
-    fn default() -> Self {
+impl TTEntry {
+    const fn new() -> Self {
         Self {
             hash: 0,
             flag: EntryType::Invalid,
             depth: 0,
             eval: Eval::NEUTRAL,
-            mv: unsafe { core::mem::zeroed() },
+            mv: Move {
+                from: Square::A1,
+                to: Square::A1,
+                promotion: None,
+            },
         }
     }
 }
 
-const HASH_TABLE_SIZE: usize = 32 * 1024 * 1024 / core::mem::size_of::<TTEntry>();
+impl Default for TTEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+const HASH_TABLE_SIZE: usize = 1 * 1024 * 1024 / core::mem::size_of::<TTEntry>();
+
+static mut HASH_TABLE: [TTEntry; HASH_TABLE_SIZE] = [TTEntry::new(); HASH_TABLE_SIZE];
 
 pub struct TranspositionTable {
-    table: ArrayVec<TTEntry, HASH_TABLE_SIZE>,
+    table: &'static mut [TTEntry; HASH_TABLE_SIZE],
     num_valid_entries: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size: TableSize) -> Self {
-        let mut values = ArrayVec::new();
-        for _ in 0..HASH_TABLE_SIZE {
-            values.push(Default::default())
-        }
         Self {
-            table: values,
+            table: unsafe { &mut HASH_TABLE },
             num_valid_entries: 0,
         }
     }

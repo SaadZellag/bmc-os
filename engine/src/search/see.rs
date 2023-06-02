@@ -17,18 +17,16 @@ pub fn static_exchange(board: &Board, mv: Move) -> EvalType {
     let initial_capture = board.piece_on(dest).unwrap();
 
     // Step 1: Finding the obvious attackers
-    let mut blockers = board.occupied() & !src.bitboard();
+    let mut blockers = board.occupied() ^ src.bitboard();
     let mut attackers = BitBoard::EMPTY;
 
     attackers |= get_pawn_attacks(dest, Color::White)
         & blockers
-        & board.colors(Color::Black)
-        & board.pieces(Piece::Pawn);
+        & board.colored_pieces(Color::Black, Piece::Pawn);
 
     attackers |= get_pawn_attacks(dest, Color::Black)
         & blockers
-        & board.colors(Color::White)
-        & board.pieces(Piece::Pawn);
+        & board.colored_pieces(Color::White, Piece::Pawn);
 
     attackers |= get_knight_moves(dest) & blockers & board.pieces(Piece::Knight);
 

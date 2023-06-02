@@ -18,3 +18,4 @@ vga = "0.2.8"
 volatile = "0.4.6"
 x86_64 = "0.14.10"
 engine = { path = './engine' }
+arrayvec = { version = "0.7.2", default-features = false }

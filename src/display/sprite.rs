@@ -14,7 +14,7 @@ macro_rules! load_sprite {
     }};
 }
 
-pub fn _new_sprite(data: &'static [u8], width: usize) -> Sprite {
+pub const fn _new_sprite(data: &'static [u8], width: usize) -> Sprite {
     Sprite { data, width }
 }
 

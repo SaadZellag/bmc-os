@@ -60,9 +60,11 @@ impl MoveList {
     pub fn with_mask(board: &Board, mask: BitBoard) -> Self {
         let mut moves = ArrayVec::new();
 
-        board.generate_moves_for(mask, |mvs| {
+        board.generate_moves(|mvs| {
             for mv in mvs {
-                moves.push(mv);
+                if mask.has(mv.to) {
+                    moves.push(mv);
+                }
             }
             false
         });
@@ -78,8 +80,6 @@ impl MoveList {
     {
         // Best moves have higher value and we want them last
         // Using pop() to get the moves
-        let mut scores: ArrayVec<MoveScore, 218> =
-            ArrayVec::from_iter(self.moves.iter().map(|mv| score_move(pos, *mv, shared)));
         introsort::sort_by(&mut self.moves, &|a, b| {
             score_move(pos, *a, shared).cmp(&score_move(pos, *b, shared))
         });

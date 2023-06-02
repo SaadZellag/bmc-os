@@ -4,6 +4,7 @@
 #![test_runner(bmc_os::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+use arrayvec::ArrayVec;
 use bmc_os::{
     display::{
         color::Color256,
@@ -14,8 +15,15 @@ use bmc_os::{
     },
     load_sprite, println, set_pixel,
 };
-use cozy_chess::{Board, Color, File, Piece, Rank, Square};
+use cozy_chess::{Board, Color, File, GameStatus, Piece, Rank, Square};
+use engine::search::tt::TTEntry;
 
+use engine::{
+    engine::{Engine, EngineOptions, MAX_DEPTH},
+    handler::SearchHandler,
+    search::{tt::TranspositionTable, SearchSharedState},
+    utils::tablesize::TableSize,
+};
 use vga::{
     colors::Color16,
     registers::PlaneMask,
@@ -48,30 +56,22 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
-    bmc_os::init();
+const chessboard: Sprite = load_sprite!("../sprites/chessboard.data", 160);
+const w_pawn: Sprite = load_sprite!("../sprites/WhitePawn.data", 20);
+const w_rook: Sprite = load_sprite!("../sprites/WhiteRook.data", 20);
+const w_knight: Sprite = load_sprite!("../sprites/WhiteKnight.data", 20);
+const w_bishop: Sprite = load_sprite!("../sprites/WhiteBishop.data", 20);
+const w_queen: Sprite = load_sprite!("../sprites/WhiteQueen.data", 20);
+const w_king: Sprite = load_sprite!("../sprites/WhiteKing.data", 20);
 
-    let board = Board::default();
+const b_pawn: Sprite = load_sprite!("../sprites/BlackPawn.data", 20);
+const b_rook: Sprite = load_sprite!("../sprites/BlackRook.data", 20);
+const b_knight: Sprite = load_sprite!("../sprites/BlackKnight.data", 20);
+const b_bishop: Sprite = load_sprite!("../sprites/BlackBishop.data", 20);
+const b_queen: Sprite = load_sprite!("../sprites/BlackQueen.data", 20);
+const b_king: Sprite = load_sprite!("../sprites/BlackKing.data", 20);
 
-    let chessboard = load_sprite!("../sprites/chessboard.data", 160);
-    let w_pawn = load_sprite!("../sprites/WhitePawn.data", 20);
-    let w_rook = load_sprite!("../sprites/WhiteRook.data", 20);
-    let w_knight = load_sprite!("../sprites/WhiteKnight.data", 20);
-    let w_bishop = load_sprite!("../sprites/WhiteBishop.data", 20);
-    let w_queen = load_sprite!("../sprites/WhiteQueen.data", 20);
-    let w_king = load_sprite!("../sprites/WhiteKing.data", 20);
-
-    let b_pawn = load_sprite!("../sprites/BlackPawn.data", 20);
-    let b_rook = load_sprite!("../sprites/BlackRook.data", 20);
-    let b_knight = load_sprite!("../sprites/BlackKnight.data", 20);
-    let b_bishop = load_sprite!("../sprites/BlackBishop.data", 20);
-    let b_queen = load_sprite!("../sprites/BlackQueen.data", 20);
-    let b_king = load_sprite!("../sprites/BlackKing.data", 20);
-
-    let start_x = (320 - 160) / 2;
-    let start_y = (240 - 160) / 2;
-
+fn draw_board(board: &Board, start_x: usize, start_y: usize) {
     draw_sprite(&chessboard, start_x, start_y);
 
     for (y, &rank) in Rank::ALL.iter().enumerate() {
@@ -101,6 +101,60 @@ pub extern "C" fn _start() -> ! {
     }
 
     flush_buffer();
+}
+
+struct Handler {
+    res: Option<engine::SearchResult>,
+}
+
+impl SearchHandler for Handler {
+    fn new_result(&mut self, result: engine::SearchResult) {
+        // println!("Res: {:?}", result);
+        self.res = Some(result);
+    }
+
+    fn should_stop(&self) -> bool {
+        self.res.map(|r| r.stats.depth >= 8).unwrap_or(false)
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn _start() -> ! {
+    bmc_os::init();
+
+    let mut board = Board::default();
+
+    let start_x = (320 - 160) / 2;
+    let start_y = (240 - 160) / 2;
+
+    let options = EngineOptions {
+        tt_size: TableSize::from_bytes(0),
+        depth: 128,
+    };
+
+    // println!(
+    //     "{}",
+    //     usize = 32 * 1024 * 1024 / core::mem::size_of::<TTEntry>()
+    // );
+
+    draw_board(&board, start_x, start_y);
+
+    while board.status() == GameStatus::Ongoing {
+        let shared = SearchSharedState {
+            handler: Handler { res: None },
+            history: ArrayVec::new(),
+            tt: TranspositionTable::new(TableSize::from_bytes(0)),
+            killers: [[None; 2]; MAX_DEPTH as usize],
+        };
+        let mut engine = Engine::new(board.clone(), options, shared);
+
+        let res = engine.best_move().unwrap();
+        // println!("Best: {:?}", res);
+
+        board.play_unchecked(res.best_move);
+
+        draw_board(&board, start_x, start_y);
+    }
 
     // for (i, rgb) in morbius.chunks_exact(3).enumerate() {
     //     let color = Color256::new(rgb[0] / 32, rgb[1] / 32, rgb[2] / 64);

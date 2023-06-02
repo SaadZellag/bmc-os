@@ -61,6 +61,7 @@ impl Position {
         } else {
             self.acc.clone()
         };
+
         Self {
             board: new_board,
             acc,
