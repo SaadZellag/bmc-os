@@ -3,9 +3,14 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(bmc_os::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(default_alloc_error_handler)]
 
+extern crate alloc;
+
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use arrayvec::ArrayVec;
 use bmc_os::{
+    allocator,
     display::{
         color::Color256,
         ensure_graphics_mode,
@@ -13,8 +18,11 @@ use bmc_os::{
         set_graphics_color,
         sprite::Sprite,
     },
-    load_sprite, println, set_pixel,
+    load_sprite,
+    memory::{self, BootInfoFrameAllocator},
+    println, set_pixel,
 };
+use bootloader::{entry_point, BootInfo};
 use cozy_chess::{Board, Color, File, GameStatus, Piece, Rank, Square};
 use engine::search::tt::TTEntry;
 
@@ -33,7 +41,11 @@ use vga::{
         TextWriter,
     },
 };
-use x86_64::instructions::interrupts;
+use x86_64::{
+    instructions::interrupts,
+    structures::paging::{PageTable, Translate},
+    VirtAddr,
+};
 
 use core::panic::PanicInfo;
 
@@ -118,9 +130,27 @@ impl SearchHandler for Handler {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(kernel_main);
+
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
     bmc_os::init();
+
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+
+    // new
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+
+    let mut elements = vec![];
+
+    for i in 0..20 {
+        elements.push(i);
+    }
+
+    println!("{:?}", elements);
+
+    loop {}
 
     let mut board = Board::default();
 

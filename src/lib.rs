@@ -5,25 +5,31 @@
 #![test_runner(crate::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate alloc;
+
+pub mod allocator;
 pub mod display;
 pub mod gdt;
 pub mod interrupts;
+pub mod memory;
 pub mod tests;
 
 #[cfg(test)]
-use core::panic::PanicInfo;
+use bootloader::entry_point;
+
+#[cfg(test)]
+entry_point!(test_kernel_main);
 
 #[cfg(test)]
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
     use crate::tests::test_panic_handler;
 
     test_panic_handler(info)
 }
 
 #[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn test_kernel_main(_boot_info: &'static bootloader::BootInfo) -> ! {
     init();
     test_main();
     loop {}
