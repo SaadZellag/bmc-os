@@ -1,3 +1,4 @@
+use alloc::{boxed::Box, vec};
 use arrayvec::ArrayVec;
 use core::iter::FromIterator;
 
@@ -44,19 +45,19 @@ impl Default for TTEntry {
     }
 }
 
-const HASH_TABLE_SIZE: usize = 1 * 1024 * 1024 / core::mem::size_of::<TTEntry>();
-
-static mut HASH_TABLE: [TTEntry; HASH_TABLE_SIZE] = [TTEntry::new(); HASH_TABLE_SIZE];
-
 pub struct TranspositionTable {
-    table: &'static mut [TTEntry; HASH_TABLE_SIZE],
+    table: Box<[TTEntry]>,
+    size: usize,
     num_valid_entries: usize,
 }
 
 impl TranspositionTable {
     pub fn new(size: TableSize) -> Self {
+        let values = vec![TTEntry::default(); size.to_vec_size::<TTEntry>()];
+        let len = values.len();
         Self {
-            table: unsafe { &mut HASH_TABLE },
+            table: values.into_boxed_slice(),
+            size: len,
             num_valid_entries: 0,
         }
     }
@@ -106,7 +107,7 @@ impl TranspositionTable {
 
     // Knuth's method
     fn to_entry_hash(&self, original_hash: u64) -> usize {
-        (original_hash as u128 * HASH_TABLE_SIZE as u128 >> 64) as usize
+        (original_hash as u128 * self.size as u128 >> 64) as usize
     }
 }
 

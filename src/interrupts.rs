@@ -1,9 +1,13 @@
 use crate::{display::get_current_text_color, gdt, print, println, set_text_color};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use spin;
+use ps2_mouse::{Mouse, MouseState};
+use spin::{self, Lazy, Mutex};
 use vga::colors::Color16;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::{
+    instructions::port::PortReadOnly,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame},
+};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -13,6 +17,7 @@ pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard,
+    Mouse = PIC_2_OFFSET + 4,
 }
 
 impl InterruptIndex {
@@ -41,12 +46,25 @@ lazy_static! {
 
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::Mouse.as_usize()].set_handler_fn(mouse_interrupt_handler);
         idt
     };
+    static ref MOUSE: Mutex<Mouse> = Mutex::new(Mouse::new());
 }
 
 pub fn init_idt() {
     IDT.load();
+    init_mouse();
+}
+
+fn init_mouse() {
+    MOUSE.lock().init().unwrap();
+    MOUSE.lock().set_on_complete(on_complete);
+}
+
+// This will be fired when a packet is finished being processed.
+fn on_complete(mouse_state: MouseState) {
+    println!("{:?}", mouse_state);
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
@@ -116,6 +134,19 @@ extern "x86-interrupt" fn page_fault_handler(
     println!("Error Code: {:?}", error_code);
     println!("{:#?}", stack_frame);
     loop {}
+}
+
+// An example interrupt based on https://os.phil-opp.com/hardware-interrupts/. The ps2 mouse is configured to fire
+// interrupts at PIC offset 12.
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let mut port = PortReadOnly::new(0x60);
+    let packet = unsafe { port.read() };
+    MOUSE.lock().process_packet(packet);
+
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Mouse as u8);
+    }
 }
 
 #[test_case]

@@ -2,6 +2,9 @@
 #![feature(portable_simd)]
 #![feature(const_ptr_read)]
 #![feature(const_size_of_val)]
+#![feature(default_alloc_error_handler)]
+
+extern crate alloc;
 
 pub mod engine;
 pub mod evaluation;

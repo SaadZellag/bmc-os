@@ -39,6 +39,7 @@ dependencies = [
  "linked_list_allocator",
  "pc-keyboard",
  "pic8259",
+ "ps2-mouse",
  "spin 0.9.8",
  "vga",
  "volatile",
@@ -167,6 +168,16 @@ version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb844b5b01db1e0b17938685738f113bfc903846f18932b378bc0eabfa40e194"
 dependencies = [
+ "x86_64",
+]
+
+[[package]]
+name = "ps2-mouse"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7a1ea62fa77d411155c765d1ba9d0286b8af83a93cda6109c295a2bde1e04a0"
+dependencies = [
+ "bitflags",
  "x86_64",
 ]
 

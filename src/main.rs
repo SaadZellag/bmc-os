@@ -126,7 +126,7 @@ impl SearchHandler for Handler {
     }
 
     fn should_stop(&self) -> bool {
-        self.res.map(|r| r.stats.depth >= 8).unwrap_or(false)
+        self.res.map(|r| r.stats.depth >= 7).unwrap_or(false)
     }
 }
 
@@ -139,16 +139,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    // new
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
-
-    let mut elements = vec![];
-
-    for i in 0..20 {
-        elements.push(i);
-    }
-
-    println!("{:?}", elements);
 
     loop {}
 
@@ -158,7 +149,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let start_y = (240 - 160) / 2;
 
     let options = EngineOptions {
-        tt_size: TableSize::from_bytes(0),
+        tt_size: TableSize::from_kb(10),
         depth: 128,
     };
 
@@ -173,7 +164,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         let shared = SearchSharedState {
             handler: Handler { res: None },
             history: ArrayVec::new(),
-            tt: TranspositionTable::new(TableSize::from_bytes(0)),
+            tt: TranspositionTable::new(TableSize::from_kb(10)),
             killers: [[None; 2]; MAX_DEPTH as usize],
         };
         let mut engine = Engine::new(board.clone(), options, shared);

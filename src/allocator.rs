@@ -11,8 +11,8 @@ use x86_64::{
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
+pub const HEAP_START: usize = 0x_6969_6969_0000;
+pub const HEAP_SIZE: usize = 10 * 1024 * 1024; // 10 MiB
 
 pub struct Dummy;
 
