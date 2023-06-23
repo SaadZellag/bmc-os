@@ -1,11 +1,15 @@
-use crate::{display::get_current_text_color, gdt, print, println, set_text_color};
+use crate::{
+    display::get_current_text_color,
+    events::{add_event, Event},
+    gdt, print, println, set_text_color,
+};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use ps2_mouse::{Mouse, MouseState};
 use spin::{self, Lazy, Mutex};
 use vga::colors::Color16;
 use x86_64::{
-    instructions::port::PortReadOnly,
+    instructions::{interrupts, port::PortReadOnly},
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame},
 };
 
@@ -64,7 +68,9 @@ fn init_mouse() {
 
 // This will be fired when a packet is finished being processed.
 fn on_complete(mouse_state: MouseState) {
-    println!("{:?}", mouse_state);
+    interrupts::without_interrupts(|| {
+        add_event(Event::MouseInput(mouse_state));
+    });
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
@@ -90,8 +96,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    use spin::Mutex;
+    use pc_keyboard::{layouts, HandleControl, Keyboard, ScancodeSet1};
     use x86_64::instructions::port::Port;
 
     lazy_static! {
@@ -101,16 +106,23 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     }
 
     let mut keyboard = KEYBOARD.lock();
-    let mut port = Port::new(0x60);
+    let mut port: x86_64::instructions::port::PortGeneric<
+        u8,
+        x86_64::instructions::port::ReadWriteAccess,
+    > = Port::new(0x60);
 
     let scancode: u8 = unsafe { port.read() };
+    let mut event = None;
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
+            event = Some(Event::KeyboardInput(key));
         }
+    }
+
+    if let Some(event) = event {
+        interrupts::without_interrupts(|| {
+            add_event(event);
+        });
     }
 
     unsafe {

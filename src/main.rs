@@ -18,6 +18,7 @@ use bmc_os::{
         set_graphics_color,
         sprite::Sprite,
     },
+    events::{self, next_event},
     load_sprite,
     memory::{self, BootInfoFrameAllocator},
     println, set_pixel,
@@ -121,7 +122,6 @@ struct Handler {
 
 impl SearchHandler for Handler {
     fn new_result(&mut self, result: engine::SearchResult) {
-        // println!("Res: {:?}", result);
         self.res = Some(result);
     }
 
@@ -141,7 +141,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    loop {}
+    events::init();
+
+    let mut count = 0;
+    loop {
+        let event = next_event();
+        println!("{:?}", event);
+    }
 
     let mut board = Board::default();
 
