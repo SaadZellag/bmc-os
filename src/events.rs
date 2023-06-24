@@ -9,16 +9,16 @@ use pc_keyboard::DecodedKey;
 use ps2_mouse::MouseState;
 use spin::Mutex;
 
-use crate::println;
+use crate::{println, queue::Queue};
 
-static mut EVENTS: MaybeUninit<SyncQueue> = MaybeUninit::uninit();
+static mut EVENTS: SyncQueue<100> = SyncQueue::new();
 
 #[derive(Debug)]
 struct Semaphore(AtomicI32);
 
 #[derive(Debug)]
-struct SyncQueue {
-    elments: VecDeque<Event>,
+struct SyncQueue<const N: usize> {
+    elments: Queue<Event, N>,
     mutex: Semaphore,
     empty: Semaphore,
     full: Semaphore,
@@ -41,7 +41,7 @@ impl Semaphore {
 
             let res = self
                 .0
-                .compare_exchange(val, val - 1, Ordering::Acquire, Ordering::Relaxed);
+                .compare_exchange(val, val - 1, Ordering::Relaxed, Ordering::Relaxed);
 
             if res.is_ok() {
                 break;
@@ -54,7 +54,7 @@ impl Semaphore {
     }
 }
 
-impl SyncQueue {
+impl<const N: usize> SyncQueue<N> {
     fn add(&mut self, event: Event) {
         self.empty.wait();
         self.mutex.wait();
@@ -75,60 +75,22 @@ impl SyncQueue {
         res
     }
 
-    fn new(size: i32) -> Self {
+    const fn new() -> Self {
         Self {
-            elments: VecDeque::with_capacity(size as usize),
+            elments: Queue::new(),
             mutex: Semaphore(AtomicI32::new(1)),
-            empty: Semaphore(AtomicI32::new(size)),
+            empty: Semaphore(AtomicI32::new(N as i32)),
             full: Semaphore(AtomicI32::new(0)),
         }
     }
 }
 
-// unsafe impl Sync for
-unsafe impl Sync for SyncQueue {}
-unsafe impl Send for SyncQueue {}
-
-// // Blocks until there is an event
+// Blocks until there is an event
 pub fn next_event() -> Event {
-    unsafe { EVENTS.assume_init_mut().poll() }
-    // loop {
-    //     if let Some(event) = try_next_event() {
-    //         return event;
-    //     }
-    // }
+    unsafe { EVENTS.poll() }
 }
 
-// // Tries to get the next event if it exists
-// pub fn try_next_event() -> Option<Event> {
-//     if FLAG.compare_exchange(current, new, success, failure) {
-//         unsafe { EVENTS.assume_init_read().pop_front() }
-//     } else {
-//         None
-//     }
-// }
-
-// Blocks until it's added
+// Blocks until event is added
 pub fn add_event(event: Event) {
-    unsafe { EVENTS.assume_init_mut().add(event) }
-    // let mut events = EVENTS.lock();
-    // events.push_back(event);
-    // while let Some(e) = try_add_event(event) {
-    //     event = e;
-    // }
-}
-
-// pub fn try_add_event(event: Event) -> Option<Event> {
-//     if let Some(mut events) = EVENTS.try_lock() {
-//         events.push_back(event);
-//         None
-//     } else {
-//         Some(event)
-//     }
-// }
-
-pub fn init() {
-    unsafe {
-        EVENTS.write(SyncQueue::new(100));
-    }
+    unsafe { EVENTS.add(event) }
 }

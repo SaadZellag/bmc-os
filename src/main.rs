@@ -135,18 +135,21 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     bmc_os::init();
 
+    // println!("HALLO1?");
+
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    events::init();
+    println!("HALLO2?");
 
     let mut count = 0;
     loop {
         let event = next_event();
-        println!("{:?}", event);
+        println!("{}: {:?}", count, event);
+        count += 1;
     }
 
     let mut board = Board::default();

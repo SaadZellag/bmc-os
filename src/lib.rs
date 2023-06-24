@@ -13,6 +13,7 @@ pub mod events;
 pub mod gdt;
 pub mod interrupts;
 pub mod memory;
+pub mod queue;
 pub mod tests;
 
 #[cfg(test)]
