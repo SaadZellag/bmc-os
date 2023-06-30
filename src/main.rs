@@ -19,6 +19,7 @@ use bmc_os::{
         sprite::Sprite,
     },
     events::{self, next_event},
+    game::Game,
     load_sprite,
     memory::{self, BootInfoFrameAllocator},
     println, set_pixel,
@@ -135,20 +136,25 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     bmc_os::init();
 
-    // println!("HALLO1?");
-
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    println!("HALLO2?");
+    let mut game = Game::new();
 
     let mut count = 0;
+
+    set_graphics_color(Color256::White);
     loop {
         let event = next_event();
-        println!("{}: {:?}", count, event);
+        // set_pixel!(count % 240, count / 240);
+        // flush_buffer();
+        game.handle_event(&event);
+        // println!("{:?}", game.mouse_pos);
+        game.draw();
+        // println!("Passed {:?}", event);
         count += 1;
     }
 

@@ -143,6 +143,14 @@ pub fn draw_line(start: Point<usize>, end: Point<usize>) {
     }
 }
 
+pub fn clear_buffer() {
+    unsafe {
+        for p in BUFFER.iter_mut() {
+            *p = Color256::Black;
+        }
+    }
+}
+
 pub fn flush_buffer() {
     const PLANE_MASKS: [PlaneMask; 4] = [
         PlaneMask::PLANE0,

@@ -1,7 +1,6 @@
 use crate::{
-    display::get_current_text_color,
-    events::{add_event, Event},
-    gdt, print, println, set_text_color,
+    display::get_current_text_color, events::add_event, game::Event, gdt, print, println,
+    set_text_color,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -68,6 +67,7 @@ fn init_mouse() {
 
 // This will be fired when a packet is finished being processed.
 fn on_complete(mouse_state: MouseState) {
+    // println!("Origin: {:?}", mouse_state);
     interrupts::without_interrupts(|| {
         add_event(Event::MouseInput(mouse_state));
     });

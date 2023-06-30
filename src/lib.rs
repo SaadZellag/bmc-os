@@ -4,12 +4,14 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(default_alloc_error_handler)]
 
 extern crate alloc;
 
 pub mod allocator;
 pub mod display;
 pub mod events;
+pub mod game;
 pub mod gdt;
 pub mod interrupts;
 pub mod memory;

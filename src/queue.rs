@@ -35,7 +35,20 @@ impl<T, const N: usize> Queue<T, N> {
         }
         self.len -= 1;
         let res = unsafe { self.elems[self.front].assume_init_read() };
-        self.front = (self.front + N - 1) % N;
+        self.front = (self.front + 1) % N;
         Some(res)
+    }
+}
+
+#[test_case]
+fn check_elements() {
+    let mut queue: Queue<usize, 100> = Queue::new();
+
+    for i in 0..100 {
+        queue.push_back(i);
+    }
+
+    for i in 0..100 {
+        assert_eq!(queue.pop_front(), Some(i));
     }
 }

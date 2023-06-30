@@ -9,7 +9,7 @@ use pc_keyboard::DecodedKey;
 use ps2_mouse::MouseState;
 use spin::Mutex;
 
-use crate::{println, queue::Queue};
+use crate::{game::Event, println, queue::Queue};
 
 static mut EVENTS: SyncQueue<128> = SyncQueue::new();
 
@@ -22,12 +22,6 @@ struct SyncQueue<const N: usize> {
     mutex: Semaphore,
     empty: Semaphore,
     full: Semaphore,
-}
-
-#[derive(Debug, Clone)]
-pub enum Event {
-    MouseInput(MouseState),
-    KeyboardInput(DecodedKey),
 }
 
 impl Semaphore {
