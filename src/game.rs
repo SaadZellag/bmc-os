@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, vec::Vec};
 use arrayvec::ArrayVec;
-use cozy_chess::Board;
+use cozy_chess::{Board, Square};
 use engine::{
     engine::{Engine, EngineOptions, MAX_DEPTH},
     handler::SearchHandler,
@@ -15,6 +15,7 @@ use crate::{
         graphics::{clear_buffer, draw_sprite, flush_buffer},
         sprite::Sprite,
     },
+    entities::ChessBoard,
     load_sprite,
 };
 
@@ -31,12 +32,12 @@ enum State {
     GameOver,
 }
 
-trait Entity {
-    fn handle_event(&mut self, event: &Event);
+pub trait Entity {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable);
 
-    fn draw(&self);
+    fn draw(&self, shared: &Shareable);
 
-    fn to_delete(&self) -> bool;
+    fn to_delete(&self, shared: &Shareable) -> bool;
 }
 
 #[derive(Debug, Clone)]
@@ -46,12 +47,18 @@ pub enum Event {
     StartGame,
     EndGame,
     ReturnToMenu,
+    PlayMove(Square, Square), // From, To
+}
+
+pub struct Shareable {
+    pub board: Board,
+    pub mouse_x: i16,
+    pub mouse_y: i16,
 }
 
 pub struct Game<'a> {
-    board: Board,
+    shared: Shareable,
     engine: Engine<'a, Handler>,
-    pub mouse_pos: (i16, i16),
     state: State,
     entities: Vec<Box<dyn Entity>>,
 }
@@ -81,44 +88,65 @@ impl<'a> Game<'a> {
         };
         let engine = Engine::new(board.clone(), options, shared);
         Self {
-            board,
+            shared: Shareable {
+                board,
+                mouse_x: 0,
+                mouse_y: 0,
+            },
             engine,
-            mouse_pos: (0, 0),
             state: State::Menu,
             entities: Vec::new(),
         }
     }
 
     pub fn handle_event(&mut self, event: &Event) {
-        for entity in self.entities.iter_mut() {
-            entity.handle_event(event);
+        let mut indexes = Vec::new();
+        for (i, entity) in self.entities.iter_mut().enumerate() {
+            entity.handle_event(event, &self.shared);
+
+            if entity.to_delete(&self.shared) {
+                indexes.push(i);
+            }
+        }
+
+        for i in indexes.into_iter().rev() {
+            self.entities.remove(i);
         }
 
         match event {
             Event::MouseInput(state) => {
-                self.mouse_pos.0 += state.get_x();
-                self.mouse_pos.1 -= state.get_y();
+                self.shared.mouse_x += state.get_x();
+                self.shared.mouse_y -= state.get_y();
 
-                self.mouse_pos.0 = self.mouse_pos.0.clamp(0, 313);
-                self.mouse_pos.1 = self.mouse_pos.1.clamp(0, 230);
+                self.shared.mouse_x = self.shared.mouse_x.clamp(0, 313);
+                self.shared.mouse_y = self.shared.mouse_y.clamp(0, 230);
             }
             Event::KeyboardInput(_) => {}
             Event::StartGame => self.start_game(),
             Event::EndGame => self.end_game(),
             Event::ReturnToMenu => self.return_to_menu(),
+            Event::PlayMove(_, _) => todo!(),
         }
     }
 
     pub fn draw(&self) {
         clear_buffer();
         for entity in self.entities.iter() {
-            entity.draw();
+            entity.draw(&self.shared);
         }
-        draw_sprite(&MOUSE, self.mouse_pos.0 as usize, self.mouse_pos.1 as usize);
+        draw_sprite(
+            &MOUSE,
+            self.shared.mouse_x as usize,
+            self.shared.mouse_y as usize,
+        );
         flush_buffer();
     }
 
-    fn start_game(&mut self) {}
+    fn start_game(&mut self) {
+        self.entities.clear();
+
+        self.entities.push(Box::new(ChessBoard::new()));
+    }
 
     fn end_game(&mut self) {}
 

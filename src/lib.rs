@@ -10,6 +10,7 @@ extern crate alloc;
 
 pub mod allocator;
 pub mod display;
+pub mod entities;
 pub mod events;
 pub mod game;
 pub mod gdt;

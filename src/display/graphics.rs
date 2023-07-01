@@ -104,6 +104,41 @@ where
     }
 }
 
+// https://stackoverflow.com/questions/22521982/check-if-point-is-inside-a-polygon
+pub fn contains_point<const N: usize, S>(shape: &S, (x, y): Point<usize>) -> bool
+where
+    S: Shape<Output = [Point<usize>; N]>,
+{
+    let points = shape.points();
+
+    let x = x as f32;
+    let y = y as f32;
+
+    let mut inside = false;
+    let mut i = 0;
+    let mut j = N - 1;
+
+    while i < N {
+        let (xi, yi) = points[i];
+        let (xj, yj) = points[j];
+
+        let xi = xi as f32;
+        let yi = yi as f32;
+        let xj = xj as f32;
+        let yj = yj as f32;
+        let intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+
+        if intersect {
+            inside = !inside;
+        }
+
+        j = i;
+        i += 1;
+    }
+
+    inside
+}
+
 #[macro_export]
 macro_rules! set_pixel {
     ($x:expr, $y:expr) => {{
@@ -188,4 +223,33 @@ pub fn _set_pixel(x: usize, y: usize, color: Color256) {
 
 fn get_pixel(x: usize, y: usize) -> Color256 {
     unsafe { BUFFER[y * WIDTH + x] }
+}
+
+#[test_case]
+fn test_in_point_rectangle() {
+    let rect = Rectangle {
+        x: 1,
+        y: 2,
+        width: 3,
+        height: 4,
+    };
+
+    let in_point = (3, 5);
+    let out_point = (6, 5);
+
+    assert!(contains_point(&rect, in_point));
+    assert!(!contains_point(&rect, out_point));
+}
+
+#[test_case]
+fn test_in_point_triangle() {
+    let triangle = Triangle {
+        points: [(0, 0), (5, 0), (2, 5)],
+    };
+
+    let in_point = (2, 1);
+    let out_point = (0, 5);
+
+    assert!(contains_point(&triangle, in_point));
+    assert!(!contains_point(&triangle, out_point));
 }

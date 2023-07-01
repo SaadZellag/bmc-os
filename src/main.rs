@@ -18,8 +18,8 @@ use bmc_os::{
         set_graphics_color,
         sprite::Sprite,
     },
-    events::{self, next_event},
-    game::Game,
+    events::{self, add_event, next_event},
+    game::{Event, Game},
     load_sprite,
     memory::{self, BootInfoFrameAllocator},
     println, set_pixel,
@@ -144,9 +144,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let mut game = Game::new();
 
+    add_event(Event::StartGame);
+
     let mut count = 0;
 
-    set_graphics_color(Color256::White);
     loop {
         let event = next_event();
         // set_pixel!(count % 240, count / 240);
