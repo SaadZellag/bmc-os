@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, vec::Vec};
 use arrayvec::ArrayVec;
-use cozy_chess::{Board, Square};
+use cozy_chess::{Board, Move, Square};
 use engine::{
     engine::{Engine, EngineOptions, MAX_DEPTH},
     handler::SearchHandler,
@@ -47,7 +47,7 @@ pub enum Event {
     StartGame,
     EndGame,
     ReturnToMenu,
-    PlayMove(Square, Square), // From, To
+    PlayMove(Move), // From, To
 }
 
 pub struct Shareable {
@@ -125,7 +125,10 @@ impl<'a> Game<'a> {
             Event::StartGame => self.start_game(),
             Event::EndGame => self.end_game(),
             Event::ReturnToMenu => self.return_to_menu(),
-            Event::PlayMove(_, _) => todo!(),
+            Event::PlayMove(mv) => {
+                // TODO: Handle promotion
+                self.shared.board.play(*mv);
+            }
         }
     }
 

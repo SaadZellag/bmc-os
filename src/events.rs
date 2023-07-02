@@ -11,7 +11,7 @@ use spin::Mutex;
 
 use crate::{game::Event, println, queue::Queue};
 
-static mut EVENTS: SyncQueue<128> = SyncQueue::new();
+static mut EVENTS: SyncQueue<512> = SyncQueue::new();
 
 #[derive(Debug)]
 struct Semaphore(AtomicI32);
