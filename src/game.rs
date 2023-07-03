@@ -15,12 +15,11 @@ use crate::{
         graphics::{clear_buffer, draw_sprite, flush_buffer},
         sprite::Sprite,
     },
-    entities::ChessBoard,
+    entities::{ChessBoard, PromotionDisplayer},
     load_sprite,
 };
 
 const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", 7);
-const chessboard: Sprite = load_sprite!("../sprites/chessboard.data", 160);
 
 struct Handler {
     res: Option<engine::SearchResult>,
@@ -47,13 +46,15 @@ pub enum Event {
     StartGame,
     EndGame,
     ReturnToMenu,
-    PlayMove(Move), // From, To
+    PlayMove(cozy_chess::Move),
+    DisplayPromotion(cozy_chess::Square, cozy_chess::Square), // From to dest Square for the struct
 }
 
 pub struct Shareable {
     pub board: Board,
     pub mouse_x: i16,
     pub mouse_y: i16,
+    pub in_promotion: bool,
 }
 
 pub struct Game<'a> {
@@ -92,6 +93,7 @@ impl<'a> Game<'a> {
                 board,
                 mouse_x: 0,
                 mouse_y: 0,
+                in_promotion: false,
             },
             engine,
             state: State::Menu,
@@ -126,8 +128,15 @@ impl<'a> Game<'a> {
             Event::EndGame => self.end_game(),
             Event::ReturnToMenu => self.return_to_menu(),
             Event::PlayMove(mv) => {
-                // TODO: Handle promotion
+                self.shared.in_promotion = false;
                 self.shared.board.play(*mv);
+            }
+            Event::DisplayPromotion(from, to) => {
+                if !self.shared.in_promotion {
+                    self.shared.in_promotion = true;
+                    self.entities
+                        .push(Box::new(PromotionDisplayer::new(*from, *to)));
+                }
             }
         }
     }

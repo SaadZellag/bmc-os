@@ -11,14 +11,19 @@ use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
 
 const SQUARE_SIZE: usize = 20;
 const BORDER_SIZE: usize = 4;
+
 const BOARD_X: usize = 80;
 const BOARD_Y: usize = 40;
+const PROMOTION_X: usize = BOARD_X + 2 * SQUARE_SIZE;
+const PROMOTION_Y: usize = (BOARD_Y - SQUARE_SIZE) / 2;
 
 const CHESSBOARD: Sprite = load_sprite!("../sprites/chessboard.data", SQUARE_SIZE * 8);
 const CHESSBOARD_BORDER: Sprite = load_sprite!(
     "../sprites/ChessBoardBorder.data",
     SQUARE_SIZE * 8 + BORDER_SIZE * 2
 );
+const PROMOTION_BACKGROUND: Sprite =
+    load_sprite!("../sprites/PromotionBackground.data", SQUARE_SIZE * 4);
 
 const W_PAWN: Sprite = load_sprite!("../sprites/WhitePawn.data", SQUARE_SIZE);
 const W_ROOK: Sprite = load_sprite!("../sprites/WhiteRook.data", SQUARE_SIZE);
@@ -41,6 +46,23 @@ const PIECE_CAPTURE: Sprite = load_sprite!("../sprites/PieceCapture.data", SQUAR
 
 const KING_BLUSH: Sprite = load_sprite!("../sprites/KingBlush.data", SQUARE_SIZE);
 
+fn piece_sprite(piece: Piece, color: Color) -> &'static Sprite {
+    match (color, piece) {
+        (Color::White, Piece::Pawn) => &W_PAWN,
+        (Color::White, Piece::Rook) => &W_ROOK,
+        (Color::White, Piece::Knight) => &W_KNIGHT,
+        (Color::White, Piece::Bishop) => &W_BISHOP,
+        (Color::White, Piece::Queen) => &W_QUEEN,
+        (Color::White, Piece::King) => &W_KING,
+        (Color::Black, Piece::Pawn) => &B_PAWN,
+        (Color::Black, Piece::Rook) => &B_ROOK,
+        (Color::Black, Piece::Knight) => &B_KNIGHT,
+        (Color::Black, Piece::Bishop) => &B_BISHOP,
+        (Color::Black, Piece::Queen) => &B_QUEEN,
+        (Color::Black, Piece::King) => &B_KING,
+    }
+}
+
 fn is_mouse_click(event: &Event) -> bool {
     match event {
         Event::MouseInput(input) => input.left_button_down(),
@@ -48,27 +70,52 @@ fn is_mouse_click(event: &Event) -> bool {
     }
 }
 
-fn to_xy(index: usize) -> (usize, usize) {
+fn to_xy(start_x: usize, start_y: usize, index: usize) -> (usize, usize) {
     (
-        BOARD_X + (index % 8) * SQUARE_SIZE,
-        BOARD_Y + (7 - (index / 8)) * SQUARE_SIZE,
+        start_x + (index % 8) * SQUARE_SIZE,
+        start_y + (7 - (index / 8)) * SQUARE_SIZE,
     )
 }
 
 fn for_each_move<F>(sq: Square, board: &Board, mut f: F)
 where
-    F: FnMut(cozy_chess::Move),
+    F: FnMut(cozy_chess::Move) -> bool,
 {
     let bb = sq.bitboard();
     board.generate_moves_for(bb, |mvs| {
         for mv in mvs {
-            f(mv);
+            if f(mv) {
+                return true;
+            }
         }
         false
     });
 }
+
+fn handle_square_selection(prev: Square, curr: Square, board: &Board) {
+    for_each_move(prev, board, |mv| {
+        // If user has clicked on a possible square to move to, play it
+        match (curr == mv.to, mv.promotion.is_some()) {
+            (true, false) => {
+                add_event(Event::PlayMove(mv));
+                true
+            }
+            (true, true) => {
+                add_event(Event::DisplayPromotion(prev, curr));
+                true
+            }
+            _ => false,
+        }
+    });
+}
 pub struct ChessBoard {
     square_selected: Option<cozy_chess::Square>,
+}
+
+pub struct PromotionDisplayer {
+    from: Square,
+    to: Square,
+    to_delete: bool,
 }
 
 impl ChessBoard {
@@ -82,22 +129,11 @@ impl ChessBoard {
         for (i, &square) in Square::ALL.iter().enumerate() {
             let piece_sprite = match (shared.board.color_on(square), shared.board.piece_on(square))
             {
-                (Some(Color::White), Some(Piece::Pawn)) => &W_PAWN,
-                (Some(Color::White), Some(Piece::Rook)) => &W_ROOK,
-                (Some(Color::White), Some(Piece::Knight)) => &W_KNIGHT,
-                (Some(Color::White), Some(Piece::Bishop)) => &W_BISHOP,
-                (Some(Color::White), Some(Piece::Queen)) => &W_QUEEN,
-                (Some(Color::White), Some(Piece::King)) => &W_KING,
-                (Some(Color::Black), Some(Piece::Pawn)) => &B_PAWN,
-                (Some(Color::Black), Some(Piece::Rook)) => &B_ROOK,
-                (Some(Color::Black), Some(Piece::Knight)) => &B_KNIGHT,
-                (Some(Color::Black), Some(Piece::Bishop)) => &B_BISHOP,
-                (Some(Color::Black), Some(Piece::Queen)) => &B_QUEEN,
-                (Some(Color::Black), Some(Piece::King)) => &B_KING,
+                (Some(color), Some(piece)) => piece_sprite(piece, color),
                 _ => continue,
             };
 
-            let (x, y) = to_xy(i);
+            let (x, y) = to_xy(BOARD_X, BOARD_Y, i);
 
             draw_sprite(piece_sprite, x, y);
         }
@@ -108,7 +144,7 @@ impl ChessBoard {
         if shared.board.checkers().len() != 0 {
             let stm = shared.board.side_to_move();
             let sq = shared.board.king(stm);
-            let (x, y) = to_xy(sq as usize);
+            let (x, y) = to_xy(BOARD_X, BOARD_Y, sq as usize);
             draw_sprite(&KING_BLUSH, x, y);
         }
 
@@ -118,13 +154,13 @@ impl ChessBoard {
 
         // Selected square
         let square = self.square_selected.unwrap();
-        let (x, y) = to_xy(square as usize);
+        let (x, y) = to_xy(BOARD_X, BOARD_Y, square as usize);
 
         draw_sprite(&PIECE_SELECTED, x, y);
 
         // Destination squares
         for_each_move(square, &shared.board, |mv| {
-            let (x, y) = to_xy(mv.to as usize);
+            let (x, y) = to_xy(BOARD_X, BOARD_Y, mv.to as usize);
 
             let sprite = if shared.board.piece_on(mv.to).is_some() {
                 &PIECE_CAPTURE
@@ -132,7 +168,21 @@ impl ChessBoard {
                 &PIECE_DESTINATION
             };
             draw_sprite(sprite, x, y);
+            false
         });
+    }
+}
+
+impl PromotionDisplayer {
+    const PIECES: [cozy_chess::Piece; 4] =
+        [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
+
+    pub fn new(from: Square, to: Square) -> Self {
+        Self {
+            from,
+            to,
+            to_delete: false,
+        }
     }
 }
 
@@ -150,7 +200,7 @@ impl Entity for ChessBoard {
             return;
         }
 
-        // Valid square selected in the board
+        // Valid square has been selected in the board
 
         let sq_index = board_x + 8 * (7 - board_y);
         let selected = Square::index(sq_index);
@@ -159,12 +209,7 @@ impl Entity for ChessBoard {
             // Clicking on same square
             Some(sq) if sq == selected => self.square_selected = None,
             Some(sq) => {
-                for_each_move(sq, &shared.board, |mv| {
-                    // If user has clicked on a possible square to move to, play it
-                    if selected == mv.to {
-                        add_event(Event::PlayMove(mv))
-                    }
-                });
+                handle_square_selection(sq, selected, &shared.board);
                 self.square_selected = None;
             }
             None => self.square_selected = Some(selected),
@@ -186,5 +231,45 @@ impl Entity for ChessBoard {
 
     fn to_delete(&self, _: &Shareable) -> bool {
         false
+    }
+}
+
+impl Entity for PromotionDisplayer {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        if !is_mouse_click(event) {
+            return;
+        }
+
+        let promotion_x = (shared.mouse_x as usize).wrapping_sub(PROMOTION_X) / SQUARE_SIZE;
+        let promotion_y = (shared.mouse_y as usize).wrapping_sub(PROMOTION_Y) / SQUARE_SIZE;
+
+        if promotion_x > 3 || promotion_y > 0 {
+            return;
+        }
+
+        let piece = PromotionDisplayer::PIECES[promotion_x];
+
+        add_event(Event::PlayMove(Move {
+            from: self.from,
+            to: self.to,
+            promotion: Some(piece),
+        }));
+
+        self.to_delete = true;
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        let color = shared.board.side_to_move();
+
+        draw_sprite(&PROMOTION_BACKGROUND, PROMOTION_X, PROMOTION_Y);
+
+        for (i, piece) in PromotionDisplayer::PIECES.into_iter().enumerate() {
+            let sprite = piece_sprite(piece, color);
+            draw_sprite(sprite, PROMOTION_X + i * SQUARE_SIZE, PROMOTION_Y);
+        }
+    }
+
+    fn to_delete(&self, shared: &Shareable) -> bool {
+        self.to_delete || !shared.in_promotion
     }
 }
