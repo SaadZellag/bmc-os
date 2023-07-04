@@ -9,13 +9,17 @@ use engine::{
 };
 use pc_keyboard::DecodedKey;
 use ps2_mouse::MouseState;
+use x86_64::instructions::hlt;
 
 use crate::{
     display::{
+        color::Color256,
         graphics::{clear_buffer, draw_sprite, flush_buffer, Rectangle},
         sprite::Sprite,
     },
-    entities::{Button, ChessBoard, PromotionDisplayer},
+    entities::{
+        Button, ChessBoard, PromotionDisplayer, Text, BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
+    },
     load_sprite,
 };
 
@@ -25,7 +29,8 @@ struct Handler {
     res: Option<engine::SearchResult>,
 }
 
-enum State {
+#[derive(PartialEq, Eq)]
+pub enum State {
     Menu,
     InGame,
     GameOver,
@@ -46,6 +51,7 @@ pub enum Event {
     StartGame,
     EndGame,
     ReturnToMenu,
+    Exit,
     PlayMove(cozy_chess::Move),
     DisplayPromotion(cozy_chess::Square, cozy_chess::Square), // From to dest Square for the struct
 }
@@ -54,13 +60,13 @@ pub struct Shareable {
     pub board: Board,
     pub mouse_x: i16,
     pub mouse_y: i16,
+    pub state: State,
     pub in_promotion: bool,
 }
 
 pub struct Game<'a> {
     shared: Shareable,
     engine: Engine<'a, Handler>,
-    state: State,
     entities: Vec<Box<dyn Entity>>,
 }
 
@@ -93,10 +99,10 @@ impl<'a> Game<'a> {
                 board,
                 mouse_x: 0,
                 mouse_y: 0,
+                state: State::Menu,
                 in_promotion: false,
             },
             engine,
-            state: State::Menu,
             entities: Vec::new(),
         }
     }
@@ -138,6 +144,9 @@ impl<'a> Game<'a> {
                         .push(Box::new(PromotionDisplayer::new(*from, *to)));
                 }
             }
+            Event::Exit => loop {
+                hlt()
+            },
         }
     }
 
@@ -156,11 +165,45 @@ impl<'a> Game<'a> {
 
     fn start_game(&mut self) {
         self.entities.clear();
+        self.shared.board = Board::default();
+        self.shared.state = State::InGame;
 
         self.entities.push(Box::new(ChessBoard::new()));
     }
 
-    fn end_game(&mut self) {}
+    fn end_game(&mut self) {
+        const GAME_OVER: Rectangle = Rectangle {
+            x: BOARD_X - BORDER_SIZE,
+            y: BOARD_Y - 32,
+            width: 80,
+            height: 16,
+        };
+
+        const GAME_RESULT: Rectangle = Rectangle {
+            x: BOARD_X + 80 + BORDER_SIZE - 1,
+            y: BOARD_Y - 32,
+            width: 80,
+            height: 16,
+        };
+
+        self.entities.push(Box::new(Button::new(
+            GAME_OVER,
+            "GAME OVER",
+            Event::ReturnToMenu,
+        )));
+
+        let (text, color) = match self.shared.board.side_to_move() {
+            cozy_chess::Color::White => ("YOU LOSE", Color256::RED),
+            cozy_chess::Color::Black => ("YOU WIN", Color256::GREEN),
+        };
+
+        let mut text = Text::new(GAME_RESULT, text);
+        text.set_color(color);
+
+        self.entities.push(Box::new(text));
+
+        self.shared.state = State::GameOver;
+    }
 
     fn return_to_menu(&mut self) {
         self.entities.clear();
@@ -169,10 +212,24 @@ impl<'a> Game<'a> {
             x: 128,
             y: 64,
             width: 64,
-            height: 48,
+            height: 32,
         };
 
-        self.entities
-            .push(Box::new(Button::new(START, "Start", Event::StartGame)))
+        const EXIT: Rectangle = Rectangle {
+            x: 128,
+            y: 128,
+            width: 64,
+            height: 32,
+        };
+
+        let mut start = Button::new(START, "Start", Event::StartGame);
+        start.set_color(Color256::GREEN);
+        self.entities.push(Box::new(start));
+
+        let mut exit = Button::new(EXIT, "Exit", Event::Exit);
+        exit.set_color(Color256::RED);
+        self.entities.push(Box::new(exit));
+
+        self.shared.state = State::Menu;
     }
 }

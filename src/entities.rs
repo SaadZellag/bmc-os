@@ -8,17 +8,17 @@ use crate::{
         sprite::Sprite,
     },
     events::add_event,
-    game::{Entity, Event, Shareable},
+    game::{Entity, Event, Shareable, State},
     load_sprite,
 };
 use alloc::string::String;
 use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
 
-const SQUARE_SIZE: usize = 20;
-const BORDER_SIZE: usize = 4;
+pub const SQUARE_SIZE: usize = 20;
+pub const BORDER_SIZE: usize = 4;
 
-const BOARD_X: usize = 80;
-const BOARD_Y: usize = 40;
+pub const BOARD_X: usize = 80;
+pub const BOARD_Y: usize = 40;
 const PROMOTION_X: usize = BOARD_X + 2 * SQUARE_SIZE;
 const PROMOTION_Y: usize = (BOARD_Y - SQUARE_SIZE) / 2;
 
@@ -115,6 +115,16 @@ fn handle_square_selection(prev: Square, curr: Square, board: &Board) {
         }
     });
 }
+
+fn is_checkmate(board: &Board) -> bool {
+    let mut checkmate = true;
+    board.generate_moves(|_| {
+        checkmate = false;
+        true
+    });
+    checkmate
+}
+
 pub struct ChessBoard {
     square_selected: Option<cozy_chess::Square>,
 }
@@ -125,9 +135,14 @@ pub struct PromotionDisplayer {
     to_delete: bool,
 }
 
-pub struct Button {
+pub struct Text {
     rect: Rectangle,
     text: &'static str,
+    color: Color256,
+}
+
+pub struct Button {
+    text: Text,
     on_click: Event,
 }
 
@@ -199,18 +214,44 @@ impl PromotionDisplayer {
     }
 }
 
-impl Button {
-    pub fn new(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+impl Text {
+    pub fn new(rect: Rectangle, text: &'static str) -> Self {
         Self {
             rect,
             text,
+            color: Color256::WHITE,
+        }
+    }
+
+    pub fn set_color(&mut self, color: Color256) {
+        self.color = color;
+    }
+}
+
+impl Button {
+    pub fn new(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+        Self {
+            text: Text::new(rect, text),
             on_click,
         }
+    }
+
+    pub fn set_color(&mut self, color: Color256) {
+        self.text.set_color(color);
     }
 }
 
 impl Entity for ChessBoard {
     fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        if shared.state == State::GameOver {
+            return;
+        }
+
+        if is_checkmate(&shared.board) {
+            add_event(Event::EndGame);
+            return;
+        }
+
         if !is_mouse_click(event) {
             return;
         }
@@ -297,20 +338,11 @@ impl Entity for PromotionDisplayer {
     }
 }
 
-impl Entity for Button {
-    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
-        if !is_mouse_click(event) {
-            return;
-        }
+impl Entity for Text {
+    fn handle_event(&mut self, _: &Event, _: &Shareable) {}
 
-        let point = (shared.mouse_x as usize, shared.mouse_y as usize);
-        if contains_point(&self.rect, point) {
-            add_event(self.on_click.clone());
-        }
-    }
-
-    fn draw(&self, shared: &Shareable) {
-        set_graphics_color(Color256::White);
+    fn draw(&self, _: &Shareable) {
+        set_graphics_color(self.color);
 
         draw_shape(&self.rect);
 
@@ -320,6 +352,27 @@ impl Entity for Button {
         let y = self.rect.y + (self.rect.height - CHAR_HEIGHT) / 2;
 
         draw_text(self.text, x, y);
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
+    }
+}
+
+impl Entity for Button {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        if !is_mouse_click(event) {
+            return;
+        }
+
+        let point = (shared.mouse_x as usize, shared.mouse_y as usize);
+        if contains_point(&self.text.rect, point) {
+            add_event(self.on_click.clone());
+        }
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        self.text.draw(shared)
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {

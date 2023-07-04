@@ -27,7 +27,7 @@ lazy_static! {
     static ref CURRENT_MODE: Mutex<Mode> = Mutex::new(Mode::Text);
     static ref TEXT: Mutex<Text80x25> = Mutex::new(Text80x25::new());
     static ref DRAWER: Mutex<Graphics320x240x256> = Mutex::new(Graphics320x240x256::new());
-    static ref CURRENT_GRAPHICS_COLOR: Mutex<Color256> = Mutex::new(Color256::White);
+    static ref CURRENT_GRAPHICS_COLOR: Mutex<Color256> = Mutex::new(Color256::WHITE);
 }
 
 #[macro_export]
@@ -54,6 +54,10 @@ macro_rules! set_text_color {
 
 pub fn set_graphics_color(color: Color256) {
     *CURRENT_GRAPHICS_COLOR.lock() = color;
+}
+
+pub fn get_current_graphics_color() -> Color256 {
+    *CURRENT_GRAPHICS_COLOR.lock()
 }
 
 pub fn get_current_text_color() -> TextModeColor {
@@ -92,7 +96,7 @@ pub fn ensure_graphics_mode() {
             let mut vga = VGA.lock();
             vga.color_palette_registers.load_palette(&PALETTE);
         }
-        drawer.clear_screen(Color256::Black.as_u8());
+        drawer.clear_screen(Color256::BLACK.as_u8());
         *current_mode = Mode::Graphics;
     }
 }

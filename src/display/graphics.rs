@@ -13,8 +13,8 @@ use x86_64::instructions::interrupts;
 use crate::{
     display::{
         color::Color256,
-        ensure_graphics_mode,
-        sprite::{Sprite, SpriteBlock},
+        ensure_graphics_mode, get_current_graphics_color, get_current_text_color,
+        sprite::{PixelInfo, Sprite, SpriteBlock},
         CURRENT_GRAPHICS_COLOR, DRAWER,
     },
     load_sprite_block, println,
@@ -27,7 +27,7 @@ const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 const SIZE: usize = WIDTH * HEIGHT;
 
-static mut BUFFER: [Color256; SIZE] = [Color256::Black; SIZE];
+static mut BUFFER: [Color256; SIZE] = [Color256::BLACK; SIZE];
 
 pub const PALETTE: [u8; PALETTE_SIZE] = {
     let mut palette = [0_u8; PALETTE_SIZE];
@@ -163,7 +163,10 @@ macro_rules! set_pixel {
 
 pub fn draw_sprite(sprite: &Sprite, x: usize, y: usize) {
     let itt = sprite.to_absolute_points(x, y);
+    draw_itt(itt);
+}
 
+pub fn draw_itt(itt: impl Iterator<Item = PixelInfo>) {
     for pixel in itt {
         let (x, y) = pixel.pos;
         let current_color = get_pixel(x, y);
@@ -183,27 +186,27 @@ pub fn draw_line(start: Point<usize>, end: Point<usize>) {
 }
 
 pub fn draw_text(text: &'static str, x: usize, y: usize) {
-    // for j in 0..16 {
-    //     for i in 0..8 {
-    //         let sprite = TEXT.index(i * 16 + j);
+    let current_color = get_current_graphics_color();
 
-    //         draw_sprite(&sprite, j * 16, i * 16);
-    //     }
-    // }
     for (i, c) in text.bytes().enumerate() {
-        println!("{} {}", c as usize, c as char);
         let sprite = TEXT.index(c as usize);
 
-        // println!("{} {}", x + i * sprite.width(), sprite.width());
-        draw_sprite(&sprite, x + i * sprite.width(), y);
+        let x = x + i * sprite.width();
+
+        let itt = sprite.to_absolute_points(x, y);
+
+        // Overriding text color
+        draw_itt(itt.map(|mut pixel| {
+            pixel.color = current_color;
+            pixel
+        }));
     }
-    // panic!()
 }
 
 pub fn clear_buffer() {
     unsafe {
         for p in BUFFER.iter_mut() {
-            *p = Color256::Black;
+            *p = Color256::BLACK;
         }
     }
 }

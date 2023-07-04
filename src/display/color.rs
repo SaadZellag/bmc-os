@@ -8,8 +8,11 @@ pub struct Color256 {
 }
 
 impl Color256 {
-    pub const Black: Color256 = Color256::new(0, 0, 0);
-    pub const White: Color256 = Color256::new(255, 255, 255);
+    pub const BLACK: Color256 = Color256::new(0, 0, 0);
+    pub const WHITE: Color256 = Color256::new(255, 255, 255);
+    pub const RED: Color256 = Color256::new(255, 0, 0);
+    pub const GREEN: Color256 = Color256::new(0, 255, 0);
+    pub const BLUE: Color256 = Color256::new(0, 0, 255);
 
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
