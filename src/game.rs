@@ -12,10 +12,10 @@ use ps2_mouse::MouseState;
 
 use crate::{
     display::{
-        graphics::{clear_buffer, draw_sprite, flush_buffer},
+        graphics::{clear_buffer, draw_sprite, flush_buffer, Rectangle},
         sprite::Sprite,
     },
-    entities::{ChessBoard, PromotionDisplayer},
+    entities::{Button, ChessBoard, PromotionDisplayer},
     load_sprite,
 };
 
@@ -162,5 +162,17 @@ impl<'a> Game<'a> {
 
     fn end_game(&mut self) {}
 
-    fn return_to_menu(&mut self) {}
+    fn return_to_menu(&mut self) {
+        self.entities.clear();
+
+        const START: Rectangle = Rectangle {
+            x: 128,
+            y: 64,
+            width: 64,
+            height: 48,
+        };
+
+        self.entities
+            .push(Box::new(Button::new(START, "Start", Event::StartGame)))
+    }
 }

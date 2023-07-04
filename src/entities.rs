@@ -1,12 +1,17 @@
 use crate::{
     display::{
-        graphics::{contains_point, draw_sprite, Rectangle},
+        color::Color256,
+        graphics::{
+            contains_point, draw_shape, draw_sprite, draw_text, Rectangle, CHAR_HEIGHT, CHAR_WIDTH,
+        },
+        set_graphics_color,
         sprite::Sprite,
     },
     events::add_event,
     game::{Entity, Event, Shareable},
     load_sprite,
 };
+use alloc::string::String;
 use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
 
 const SQUARE_SIZE: usize = 20;
@@ -45,6 +50,8 @@ const PIECE_DESTINATION: Sprite = load_sprite!("../sprites/PieceDestination.data
 const PIECE_CAPTURE: Sprite = load_sprite!("../sprites/PieceCapture.data", SQUARE_SIZE);
 
 const KING_BLUSH: Sprite = load_sprite!("../sprites/KingBlush.data", SQUARE_SIZE);
+
+const TEXT: Sprite = load_sprite!("../sprites/Text.data", 16 * 16);
 
 fn piece_sprite(piece: Piece, color: Color) -> &'static Sprite {
     match (color, piece) {
@@ -118,6 +125,12 @@ pub struct PromotionDisplayer {
     to_delete: bool,
 }
 
+pub struct Button {
+    rect: Rectangle,
+    text: &'static str,
+    on_click: Event,
+}
+
 impl ChessBoard {
     pub fn new() -> Self {
         Self {
@@ -182,6 +195,16 @@ impl PromotionDisplayer {
             from,
             to,
             to_delete: false,
+        }
+    }
+}
+
+impl Button {
+    pub fn new(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+        Self {
+            rect,
+            text,
+            on_click,
         }
     }
 }
@@ -271,5 +294,35 @@ impl Entity for PromotionDisplayer {
 
     fn to_delete(&self, shared: &Shareable) -> bool {
         self.to_delete || !shared.in_promotion
+    }
+}
+
+impl Entity for Button {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        if !is_mouse_click(event) {
+            return;
+        }
+
+        let point = (shared.mouse_x as usize, shared.mouse_y as usize);
+        if contains_point(&self.rect, point) {
+            add_event(self.on_click.clone());
+        }
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        set_graphics_color(Color256::White);
+
+        draw_shape(&self.rect);
+
+        let width = self.text.len() * CHAR_WIDTH;
+
+        let x = self.rect.x + (self.rect.width - width) / 2;
+        let y = self.rect.y + (self.rect.height - CHAR_HEIGHT) / 2;
+
+        draw_text(self.text, x, y);
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
     }
 }

@@ -12,10 +12,16 @@ use x86_64::instructions::interrupts;
 
 use crate::{
     display::{
-        color::Color256, ensure_graphics_mode, sprite::Sprite, CURRENT_GRAPHICS_COLOR, DRAWER,
+        color::Color256,
+        ensure_graphics_mode,
+        sprite::{Sprite, SpriteBlock},
+        CURRENT_GRAPHICS_COLOR, DRAWER,
     },
-    println,
+    load_sprite_block, println,
 };
+
+pub const CHAR_WIDTH: usize = 8;
+pub const CHAR_HEIGHT: usize = 8;
 
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
@@ -47,6 +53,11 @@ pub const PALETTE: [u8; PALETTE_SIZE] = {
 
     palette
 };
+
+// https://lpc.opengameart.org/content/8x8-ascii-bitmap-font-with-c-source
+lazy_static! {
+    static ref TEXT: SpriteBlock = load_sprite_block!("../../sprites/Text.data", 8, 8, 16);
+}
 
 pub trait Shape {
     type Output;
@@ -158,13 +169,6 @@ pub fn draw_sprite(sprite: &Sprite, x: usize, y: usize) {
         let current_color = get_pixel(x, y);
         let new_color =
             current_color.apply_alpha(255 - pixel.alpha) + pixel.color.apply_alpha(pixel.alpha);
-        // println!(
-        //     "{:?} + {:?} for alpha={}: {:?}",
-        //     current_color, pixel.color, pixel.alpha, new_color
-        // );
-        // if new_color.r != 0 && new_color.r != 255 {
-        //     loop {}
-        // }
         set_pixel!(x, y, new_color);
     }
 }
@@ -176,6 +180,24 @@ pub fn draw_line(start: Point<usize>, end: Point<usize>) {
     for (x, y) in Bresenham::new(start, end) {
         set_pixel!(x as usize, y as usize, color)
     }
+}
+
+pub fn draw_text(text: &'static str, x: usize, y: usize) {
+    // for j in 0..16 {
+    //     for i in 0..8 {
+    //         let sprite = TEXT.index(i * 16 + j);
+
+    //         draw_sprite(&sprite, j * 16, i * 16);
+    //     }
+    // }
+    for (i, c) in text.bytes().enumerate() {
+        println!("{} {}", c as usize, c as char);
+        let sprite = TEXT.index(c as usize);
+
+        // println!("{} {}", x + i * sprite.width(), sprite.width());
+        draw_sprite(&sprite, x + i * sprite.width(), y);
+    }
+    // panic!()
 }
 
 pub fn clear_buffer() {

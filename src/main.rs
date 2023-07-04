@@ -16,11 +16,11 @@ use bmc_os::{
         ensure_graphics_mode,
         graphics::{draw_shape, draw_sprite, flush_buffer, Triangle, PALETTE},
         set_graphics_color,
-        sprite::Sprite,
+        sprite::{Sprite, SpriteBlock},
     },
     events::{self, add_event, next_event},
     game::{Event, Game},
-    load_sprite,
+    load_sprite, load_sprite_block,
     memory::{self, BootInfoFrameAllocator},
     println, set_pixel,
 };
@@ -144,7 +144,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let mut game = Game::new();
 
-    add_event(Event::StartGame);
+    // add_event(Event::StartGame);
+    add_event(Event::ReturnToMenu);
 
     let mut count = 0;
 
