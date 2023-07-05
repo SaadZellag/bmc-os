@@ -185,10 +185,10 @@ pub fn draw_line(start: Point<usize>, end: Point<usize>) {
     }
 }
 
-pub fn draw_text(text: &'static str, x: usize, y: usize) {
+pub fn draw_text(text: impl Iterator<Item = u8>, x: usize, y: usize) {
     let current_color = get_current_graphics_color();
 
-    for (i, c) in text.bytes().enumerate() {
+    for (i, c) in text.enumerate() {
         let sprite = TEXT.index(c as usize);
 
         let x = x + i * sprite.width();

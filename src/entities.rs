@@ -137,7 +137,7 @@ pub struct PromotionDisplayer {
 
 pub struct Text {
     rect: Rectangle,
-    text: &'static str,
+    text: String,
     color: Color256,
 }
 
@@ -215,10 +215,13 @@ impl PromotionDisplayer {
 }
 
 impl Text {
-    pub fn new(rect: Rectangle, text: &'static str) -> Self {
+    pub fn new<S>(rect: Rectangle, text: S) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
             rect,
-            text,
+            text: text.into(),
             color: Color256::WHITE,
         }
     }
@@ -351,7 +354,7 @@ impl Entity for Text {
         let x = self.rect.x + (self.rect.width - width) / 2;
         let y = self.rect.y + (self.rect.height - CHAR_HEIGHT) / 2;
 
-        draw_text(self.text, x, y);
+        draw_text(self.text.bytes(), x, y);
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {
