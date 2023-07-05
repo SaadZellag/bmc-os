@@ -56,6 +56,10 @@ impl<'a, H: SearchHandler> Engine<'a, H> {
     }
 
     pub fn best_move(&mut self) -> Option<SearchResult> {
+        self.best_move_starting(0)
+    }
+
+    pub fn best_move_starting(&mut self, start: u8) -> Option<SearchResult> {
         // TODO: Checking if only 1 move possible, then playing that
 
         // Running depth 1 without quiese at least have a move
@@ -64,7 +68,7 @@ impl<'a, H: SearchHandler> Engine<'a, H> {
 
         let mut res: Option<SearchResult> = None;
 
-        for depth in 1..=self.options.depth {
+        for depth in start..=self.options.depth {
             if let Some(most_recent) =
                 self.searcher
                     .search(depth, &mut self.shared, quiese, res.map(|r| r.best_move))

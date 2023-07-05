@@ -1,4 +1,7 @@
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{
+    boxed::Box,
+    vec::{self, Vec},
+};
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Square};
 use engine::{
@@ -14,19 +17,25 @@ use x86_64::instructions::hlt;
 use crate::{
     display::{
         color::Color256,
-        graphics::{clear_buffer, draw_sprite, flush_buffer, Rectangle},
+        graphics::{clear_buffer, draw_sprite, flush_buffer, Rectangle, HEIGHT, WIDTH},
         sprite::Sprite,
     },
     entities::{
         Button, ChessBoard, PromotionDisplayer, Text, BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
     },
-    load_sprite,
+    events::add_event,
+    load_sprite, set_pixel,
 };
 
-const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", 7);
+const MOUSE_WIDTH: usize = 7;
+const MOUSE_HEIGHT: usize = 10;
+const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", MOUSE_WIDTH);
+
+const MAX_ENGINE_DEPTH: u8 = 5;
 
 struct Handler {
     res: Option<engine::SearchResult>,
+    current_depth: u8,
 }
 
 #[derive(PartialEq, Eq)]
@@ -54,6 +63,7 @@ pub enum Event {
     Exit,
     PlayMove(cozy_chess::Move),
     DisplayPromotion(cozy_chess::Square, cozy_chess::Square), // From to dest Square for the struct
+    StartEngineSearch(u8),                                    // depth
 }
 
 pub struct Shareable {
@@ -67,6 +77,7 @@ pub struct Shareable {
 pub struct Game<'a> {
     shared: Shareable,
     engine: Engine<'a, Handler>,
+    history: Vec<u64>,
     entities: Vec<Box<dyn Entity>>,
 }
 
@@ -76,7 +87,9 @@ impl SearchHandler for Handler {
     }
 
     fn should_stop(&self) -> bool {
-        self.res.map(|r| r.stats.depth >= 7).unwrap_or(false)
+        self.res
+            .map(|res| res.stats.depth >= self.current_depth)
+            .unwrap_or(false)
     }
 }
 
@@ -88,7 +101,10 @@ impl<'a> Game<'a> {
             depth: 128,
         };
         let shared = SearchSharedState {
-            handler: Handler { res: None },
+            handler: Handler {
+                res: None,
+                current_depth: 1,
+            },
             history: ArrayVec::new(),
             tt: TranspositionTable::new(TableSize::from_kb(10)),
             killers: [[None; 2]; MAX_DEPTH as usize],
@@ -102,6 +118,7 @@ impl<'a> Game<'a> {
                 state: State::Menu,
                 in_promotion: false,
             },
+            history: Vec::new(),
             engine,
             entities: Vec::new(),
         }
@@ -122,31 +139,17 @@ impl<'a> Game<'a> {
         }
 
         match event {
-            Event::MouseInput(state) => {
-                self.shared.mouse_x += state.get_x();
-                self.shared.mouse_y -= state.get_y();
-
-                self.shared.mouse_x = self.shared.mouse_x.clamp(0, 313);
-                self.shared.mouse_y = self.shared.mouse_y.clamp(0, 230);
-            }
+            Event::MouseInput(state) => self.handle_mouse_input(state),
             Event::KeyboardInput(_) => {}
             Event::StartGame => self.start_game(),
             Event::EndGame => self.end_game(),
             Event::ReturnToMenu => self.return_to_menu(),
-            Event::PlayMove(mv) => {
-                self.shared.in_promotion = false;
-                self.shared.board.play(*mv);
-            }
-            Event::DisplayPromotion(from, to) => {
-                if !self.shared.in_promotion {
-                    self.shared.in_promotion = true;
-                    self.entities
-                        .push(Box::new(PromotionDisplayer::new(*from, *to)));
-                }
-            }
+            Event::PlayMove(mv) => self.play_move(*mv),
+            Event::DisplayPromotion(from, to) => self.display_promotion(*from, *to),
             Event::Exit => loop {
                 hlt()
             },
+            Event::StartEngineSearch(depth) => self.start_engine_search(*depth),
         }
     }
 
@@ -161,6 +164,47 @@ impl<'a> Game<'a> {
             self.shared.mouse_y as usize,
         );
         flush_buffer();
+    }
+
+    fn handle_mouse_input(&mut self, state: &MouseState) {
+        self.shared.mouse_x += state.get_x();
+        self.shared.mouse_y -= state.get_y();
+
+        self.shared.mouse_x = self.shared.mouse_x.clamp(0, (WIDTH - MOUSE_WIDTH) as i16);
+        self.shared.mouse_y = self.shared.mouse_y.clamp(0, (HEIGHT - MOUSE_HEIGHT) as i16);
+    }
+
+    fn play_move(&mut self, mv: Move) {
+        self.shared.in_promotion = false;
+        self.history.push(self.shared.board.hash());
+        self.shared.board.play(mv);
+
+        if self.shared.board.side_to_move() == cozy_chess::Color::Black {
+            self.engine
+                .set_position(self.shared.board.clone(), &self.history);
+            self.engine.mut_handler().res = None;
+            add_event(Event::StartEngineSearch(1))
+        }
+    }
+
+    fn display_promotion(&mut self, from: Square, to: Square) {
+        if !self.shared.in_promotion {
+            self.shared.in_promotion = true;
+            self.entities
+                .push(Box::new(PromotionDisplayer::new(from, to)));
+        }
+    }
+
+    fn start_engine_search(&mut self, depth: u8) {
+        if depth >= MAX_ENGINE_DEPTH {
+            let mv = self.engine.handler().res.unwrap().best_move;
+            add_event(Event::PlayMove(mv));
+            return;
+        }
+
+        self.engine.mut_handler().current_depth = depth + 1;
+        self.engine.best_move_starting(depth);
+        add_event(Event::StartEngineSearch(depth + 1))
     }
 
     fn start_game(&mut self) {

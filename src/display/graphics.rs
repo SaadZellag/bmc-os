@@ -23,8 +23,8 @@ use crate::{
 pub const CHAR_WIDTH: usize = 8;
 pub const CHAR_HEIGHT: usize = 8;
 
-const WIDTH: usize = 320;
-const HEIGHT: usize = 240;
+pub const WIDTH: usize = 320;
+pub const HEIGHT: usize = 240;
 const SIZE: usize = WIDTH * HEIGHT;
 
 static mut BUFFER: [Color256; SIZE] = [Color256::BLACK; SIZE];
