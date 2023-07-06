@@ -56,7 +56,8 @@ pub const PALETTE: [u8; PALETTE_SIZE] = {
 
 // https://lpc.opengameart.org/content/8x8-ascii-bitmap-font-with-c-source
 lazy_static! {
-    static ref TEXT: SpriteBlock = load_sprite_block!("../../sprites/Text.data", 8, 8, 16);
+    static ref TEXT: SpriteBlock =
+        load_sprite_block!("../../sprites/Text.data", CHAR_WIDTH, CHAR_HEIGHT, 16);
 }
 
 pub trait Shape {

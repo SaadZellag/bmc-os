@@ -9,6 +9,7 @@ use engine::{
     handler::SearchHandler,
     search::{tt::TranspositionTable, SearchSharedState},
     utils::tablesize::TableSize,
+    Eval,
 };
 use pc_keyboard::DecodedKey;
 use ps2_mouse::MouseState;
@@ -21,7 +22,8 @@ use crate::{
         sprite::Sprite,
     },
     entities::{
-        Button, ChessBoard, PromotionDisplayer, Text, BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
+        is_checkmate, Button, ChessBoard, EngineEval, PromotionDisplayer, Text, BOARD_X, BOARD_Y,
+        BORDER_SIZE, SQUARE_SIZE,
     },
     events::add_event,
     load_sprite, set_pixel,
@@ -31,7 +33,7 @@ const MOUSE_WIDTH: usize = 7;
 const MOUSE_HEIGHT: usize = 10;
 const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", MOUSE_WIDTH);
 
-const MAX_ENGINE_DEPTH: u8 = 5;
+const MAX_ENGINE_DEPTH: u8 = 6;
 
 struct Handler {
     res: Option<engine::SearchResult>,
@@ -72,6 +74,8 @@ pub struct Shareable {
     pub mouse_y: i16,
     pub state: State,
     pub in_promotion: bool,
+    pub engine_eval: Eval,
+    pub engine_thinking: bool,
 }
 
 pub struct Game<'a> {
@@ -117,6 +121,8 @@ impl<'a> Game<'a> {
                 mouse_y: 0,
                 state: State::Menu,
                 in_promotion: false,
+                engine_eval: Eval::NEUTRAL,
+                engine_thinking: false,
             },
             history: Vec::new(),
             engine,
@@ -176,12 +182,13 @@ impl<'a> Game<'a> {
 
     fn play_move(&mut self, mv: Move) {
         self.shared.in_promotion = false;
-        self.history.push(self.shared.board.hash());
-        self.shared.board.play(mv);
 
-        if self.shared.board.side_to_move() == cozy_chess::Color::Black {
-            self.engine
-                .set_position(self.shared.board.clone(), &self.history);
+        let board = &mut self.shared.board;
+        self.history.push(board.hash());
+        board.play(mv);
+
+        if board.side_to_move() == cozy_chess::Color::Black && !is_checkmate(board) {
+            self.engine.set_position(board.clone(), &self.history);
             self.engine.mut_handler().res = None;
             add_event(Event::StartEngineSearch(1))
         }
@@ -196,14 +203,17 @@ impl<'a> Game<'a> {
     }
 
     fn start_engine_search(&mut self, depth: u8) {
+        self.shared.engine_thinking = true;
         if depth >= MAX_ENGINE_DEPTH {
             let mv = self.engine.handler().res.unwrap().best_move;
             add_event(Event::PlayMove(mv));
+            self.shared.engine_thinking = false;
             return;
         }
 
         self.engine.mut_handler().current_depth = depth + 1;
         self.engine.best_move_starting(depth);
+        self.shared.engine_eval = self.engine.handler().res.unwrap().eval;
         add_event(Event::StartEngineSearch(depth + 1))
     }
 
@@ -211,8 +221,11 @@ impl<'a> Game<'a> {
         self.entities.clear();
         self.shared.board = Board::default();
         self.shared.state = State::InGame;
+        self.shared.engine_eval = Eval::NEUTRAL;
+        self.history.clear();
 
         self.entities.push(Box::new(ChessBoard::new()));
+        self.entities.push(Box::new(EngineEval::new()));
     }
 
     fn end_game(&mut self) {

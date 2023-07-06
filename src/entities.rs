@@ -1,8 +1,11 @@
+use core::f64::consts;
+
 use crate::{
     display::{
         color::Color256,
         graphics::{
             contains_point, draw_shape, draw_sprite, draw_text, Rectangle, CHAR_HEIGHT, CHAR_WIDTH,
+            WIDTH,
         },
         set_graphics_color,
         sprite::Sprite,
@@ -11,8 +14,9 @@ use crate::{
     game::{Entity, Event, Shareable, State},
     load_sprite,
 };
-use alloc::string::String;
+use alloc::{format, string::String};
 use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
+use engine::Eval;
 
 pub const SQUARE_SIZE: usize = 20;
 pub const BORDER_SIZE: usize = 4;
@@ -21,6 +25,10 @@ pub const BOARD_X: usize = 80;
 pub const BOARD_Y: usize = 40;
 const PROMOTION_X: usize = BOARD_X + 2 * SQUARE_SIZE;
 const PROMOTION_Y: usize = (BOARD_Y - SQUARE_SIZE) / 2;
+const ENGINE_EVAL_X: usize = BOARD_X + 8 * SQUARE_SIZE + BORDER_SIZE + 5;
+const ENGINE_EVAL_Y: usize = BOARD_Y;
+const ENGINE_THINKING_X: usize = ENGINE_EVAL_X;
+const ENGINE_THINKING_Y: usize = ENGINE_EVAL_Y + SQUARE_SIZE * 2;
 
 const CHESSBOARD: Sprite = load_sprite!("../sprites/chessboard.data", SQUARE_SIZE * 8);
 const CHESSBOARD_BORDER: Sprite = load_sprite!(
@@ -51,7 +59,7 @@ const PIECE_CAPTURE: Sprite = load_sprite!("../sprites/PieceCapture.data", SQUAR
 
 const KING_BLUSH: Sprite = load_sprite!("../sprites/KingBlush.data", SQUARE_SIZE);
 
-const TEXT: Sprite = load_sprite!("../sprites/Text.data", 16 * 16);
+const ENGINE_THINKING: Sprite = load_sprite!("../sprites/EngineThinking.data", 40);
 
 fn piece_sprite(piece: Piece, color: Color) -> &'static Sprite {
     match (color, piece) {
@@ -116,13 +124,23 @@ fn handle_square_selection(prev: Square, curr: Square, board: &Board) {
     });
 }
 
-fn is_checkmate(board: &Board) -> bool {
+pub fn is_checkmate(board: &Board) -> bool {
     let mut checkmate = true;
     board.generate_moves(|_| {
         checkmate = false;
         true
     });
     checkmate
+}
+
+fn sigmoid(val: i32) -> i32 {
+    let computed = ((val / 20).abs().min(127) - 127).pow(2) / 128;
+
+    if val > 0 {
+        255 - computed
+    } else {
+        computed
+    }
 }
 
 pub struct ChessBoard {
@@ -144,6 +162,11 @@ pub struct Text {
 pub struct Button {
     text: Text,
     on_click: Event,
+}
+
+pub struct EngineEval {
+    text: Text,
+    curr_eval: Eval,
 }
 
 impl ChessBoard {
@@ -244,6 +267,50 @@ impl Button {
     }
 }
 
+impl EngineEval {
+    pub fn new() -> Self {
+        let mut s = Self {
+            text: Text::new(
+                Rectangle {
+                    x: ENGINE_EVAL_X,
+                    y: ENGINE_EVAL_Y,
+                    width: 6 * 8,
+                    height: 16,
+                },
+                Self::eval_to_string(Eval::NEUTRAL),
+            ),
+            curr_eval: Eval::NEUTRAL,
+        };
+        s.calculate_new_color();
+        s
+    }
+
+    pub fn eval_to_string(eval: Eval) -> String {
+        match eval {
+            Eval::MateIn(x) => format!("M{}", x),
+            Eval::MatedIn(x) => format!("M-{}", x),
+            Eval::CentiPawn(x) => format!("{}", x),
+        }
+    }
+
+    fn calculate_new_color(&mut self) {
+        // Calculating color to show
+        // red is losing, green is winning, yellow is neutral
+
+        let val = self.curr_eval.value();
+
+        let computed = sigmoid(val);
+
+        let r = (255 - computed) as u8;
+        let g = computed as u8;
+        let b = 0;
+
+        let color = Color256::new(r, g, b);
+
+        self.text.set_color(color)
+    }
+}
+
 impl Entity for ChessBoard {
     fn handle_event(&mut self, event: &Event, shared: &Shareable) {
         if shared.state == State::GameOver {
@@ -294,6 +361,10 @@ impl Entity for ChessBoard {
         self.draw_board(shared);
 
         self.draw_overlay_squares(shared);
+
+        if shared.engine_thinking {
+            draw_sprite(&ENGINE_THINKING, ENGINE_THINKING_X, ENGINE_THINKING_Y);
+        }
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {
@@ -381,4 +452,33 @@ impl Entity for Button {
     fn to_delete(&self, _: &Shareable) -> bool {
         false
     }
+}
+
+impl Entity for EngineEval {
+    fn handle_event(&mut self, _: &Event, shared: &Shareable) {
+        if shared.engine_eval == self.curr_eval {
+            return;
+        }
+
+        self.curr_eval = shared.engine_eval;
+        self.text.text = Self::eval_to_string(self.curr_eval);
+
+        self.calculate_new_color();
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        self.text.draw(shared);
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
+    }
+}
+
+#[test_case]
+fn test_sigmoid() {
+    assert_eq!(sigmoid(0), 126);
+
+    assert_eq!(sigmoid(100000000), 127);
+    assert_eq!(sigmoid(-100000000), 0);
 }

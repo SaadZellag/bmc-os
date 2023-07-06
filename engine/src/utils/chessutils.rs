@@ -52,6 +52,6 @@ impl BoardFeatures<HalfKP> {
 
 impl SquareUtils for Square {
     fn flip(self) -> Self {
-        self.flip_file() // TODO: Note sure of this
+        self.flip_rank()
     }
 }

@@ -5,8 +5,6 @@
 #![test_runner(crate::tests::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![feature(default_alloc_error_handler)]
-#![feature(const_eval_limit)]
-#![const_eval_limit = "100000000"]
 
 extern crate alloc;
 
