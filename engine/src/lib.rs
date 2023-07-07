@@ -90,6 +90,13 @@ impl Eval {
             }
         }
     }
+
+    pub fn is_mate(self) -> bool {
+        match self {
+            Eval::MateIn(_) | Eval::MatedIn(_) => true,
+            Eval::CentiPawn(_) => false,
+        }
+    }
 }
 
 impl Add for Eval {

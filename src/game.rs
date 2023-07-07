@@ -232,7 +232,7 @@ impl<'a> Game<'a> {
         self.engine.best_move_starting(depth);
         self.shared.engine_eval = self.engine.handler().res.unwrap().eval;
 
-        if depth >= self.engine.handler().max_depth {
+        if depth >= self.engine.handler().max_depth || self.shared.engine_eval.is_mate() {
             let mv = self.engine.handler().res.unwrap().best_move;
             add_event(Event::PlayMove(mv));
             self.shared.engine_thinking = false;
