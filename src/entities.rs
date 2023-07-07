@@ -1,4 +1,4 @@
-use core::f64::consts;
+use core::{array, f64::consts};
 
 use crate::{
     display::{
@@ -14,7 +14,10 @@ use crate::{
     game::{Entity, Event, Shareable, State},
     load_sprite,
 };
-use alloc::{format, string::String};
+use alloc::{
+    format,
+    string::{String, ToString},
+};
 use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
 use engine::Eval;
 
@@ -183,6 +186,10 @@ pub struct ColorSelector {
     black_button: Button<SpriteEntity>,
 }
 
+pub struct DifficultySelector {
+    difficulties: [Button<Text>; Self::NUM_DIFFICULTIES],
+}
+
 impl ChessBoard {
     pub fn new() -> Self {
         Self {
@@ -297,7 +304,7 @@ impl<E: Entity> Button<E> {
 }
 
 impl Button<Text> {
-    pub fn with_text(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+    pub fn with_text<S: Into<String>>(rect: Rectangle, text: S, on_click: Event) -> Self {
         Self {
             rect,
             entity: Text::new(rect, text),
@@ -401,6 +408,32 @@ impl ColorSelector {
             white_button,
             black_button,
         }
+    }
+}
+
+impl DifficultySelector {
+    const NUM_DIFFICULTIES: usize = 7;
+
+    pub fn new() -> Self {
+        const Y: usize = 16;
+        const BUTTON_SIZE: usize = 16;
+        const PADDING: usize = 4;
+        let start_x =
+            (WIDTH - Self::NUM_DIFFICULTIES * BUTTON_SIZE - (Self::NUM_DIFFICULTIES - 1) * PADDING)
+                / 2;
+
+        let difficulties = array::from_fn(|i| {
+            let text = (i + 1).to_string();
+            let rect = Rectangle {
+                x: start_x + i * BUTTON_SIZE + i * PADDING,
+                y: Y,
+                width: BUTTON_SIZE,
+                height: BUTTON_SIZE,
+            };
+            Button::with_text(rect, text, Event::SetEngineDepth(i as u8 + 1))
+        });
+
+        Self { difficulties }
     }
 }
 
@@ -600,6 +633,29 @@ impl Entity for ColorSelector {
 
         set_graphics_color(Color256::LIGHT_BLUE);
         draw_shape(&rect);
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
+    }
+}
+
+impl Entity for DifficultySelector {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        for (i, button) in self.difficulties.iter_mut().enumerate() {
+            button.handle_event(event, shared);
+            if (i as u8 + 1) == shared.engine_depth {
+                button.set_color(Color256::LIGHT_BLUE);
+            } else {
+                button.set_color(Color256::WHITE);
+            }
+        }
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        for button in self.difficulties.iter() {
+            button.draw(shared)
+        }
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {

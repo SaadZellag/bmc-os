@@ -22,8 +22,8 @@ use crate::{
         sprite::Sprite,
     },
     entities::{
-        is_checkmate, Button, ChessBoard, ColorSelector, EngineEval, PromotionDisplayer, Text,
-        BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
+        is_checkmate, Button, ChessBoard, ColorSelector, DifficultySelector, EngineEval,
+        PromotionDisplayer, Text, BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
     },
     events::add_event,
     load_sprite, set_pixel,
@@ -34,11 +34,10 @@ const MOUSE_HEIGHT: usize = 10;
 
 const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", MOUSE_WIDTH);
 
-const MAX_ENGINE_DEPTH: u8 = 6;
-
 struct Handler {
     res: Option<engine::SearchResult>,
     current_depth: u8,
+    max_depth: u8,
 }
 
 #[derive(PartialEq, Eq)]
@@ -68,6 +67,7 @@ pub enum Event {
     DisplayPromotion(cozy_chess::Square, cozy_chess::Square), // From to dest Square for the struct
     StartEngineSearch(u8),                                    // depth
     SetPlayerColor(cozy_chess::Color),
+    SetEngineDepth(u8),
 }
 
 pub struct Shareable {
@@ -79,6 +79,7 @@ pub struct Shareable {
     pub engine_eval: Eval,
     pub engine_thinking: bool,
     pub user_color: cozy_chess::Color,
+    pub engine_depth: u8,
 }
 
 impl Shareable {
@@ -113,27 +114,30 @@ impl<'a> Game<'a> {
             tt_size: TableSize::from_kb(10),
             depth: 128,
         };
-        let shared = SearchSharedState {
+        let search_shared = SearchSharedState {
             handler: Handler {
                 res: None,
                 current_depth: 1,
+                max_depth: 3,
             },
             history: ArrayVec::new(),
             tt: TranspositionTable::new(TableSize::from_kb(10)),
             killers: [[None; 2]; MAX_DEPTH as usize],
         };
-        let engine = Engine::new(board.clone(), options, shared);
+        let shared = Shareable {
+            board: board.clone(),
+            mouse_x: 0,
+            mouse_y: 0,
+            state: State::Menu,
+            in_promotion: false,
+            engine_eval: Eval::NEUTRAL,
+            engine_thinking: false,
+            user_color: cozy_chess::Color::White,
+            engine_depth: search_shared.handler.max_depth,
+        };
+        let engine = Engine::new(board, options, search_shared);
         Self {
-            shared: Shareable {
-                board,
-                mouse_x: 0,
-                mouse_y: 0,
-                state: State::Menu,
-                in_promotion: false,
-                engine_eval: Eval::NEUTRAL,
-                engine_thinking: false,
-                user_color: cozy_chess::Color::White,
-            },
+            shared,
             history: Vec::new(),
             engine,
             entities: Vec::new(),
@@ -167,6 +171,9 @@ impl<'a> Game<'a> {
             },
             Event::StartEngineSearch(depth) => self.start_engine_search(*depth),
             Event::SetPlayerColor(color) => self.shared.user_color = *color,
+            Event::SetEngineDepth(depth) => {
+                self.shared.engine_depth = *depth;
+            }
         }
     }
 
@@ -214,17 +221,24 @@ impl<'a> Game<'a> {
     }
 
     fn start_engine_search(&mut self, depth: u8) {
+        if depth == 1 {
+            self.engine
+                .set_position(self.shared.board.clone(), &self.history);
+            self.engine.mut_handler().max_depth = self.shared.engine_depth;
+        }
         self.shared.engine_thinking = true;
-        if depth >= MAX_ENGINE_DEPTH {
+
+        self.engine.mut_handler().current_depth = depth + 1;
+        self.engine.best_move_starting(depth);
+        self.shared.engine_eval = self.engine.handler().res.unwrap().eval;
+
+        if depth >= self.engine.handler().max_depth {
             let mv = self.engine.handler().res.unwrap().best_move;
             add_event(Event::PlayMove(mv));
             self.shared.engine_thinking = false;
             return;
         }
 
-        self.engine.mut_handler().current_depth = depth + 1;
-        self.engine.best_move_starting(depth);
-        self.shared.engine_eval = self.engine.handler().res.unwrap().eval;
         add_event(Event::StartEngineSearch(depth + 1))
     }
 
@@ -233,6 +247,7 @@ impl<'a> Game<'a> {
         self.shared.board = Board::default();
         self.shared.state = State::InGame;
         self.shared.engine_eval = Eval::NEUTRAL;
+        self.engine.mut_handler().res = None;
         self.history.clear();
 
         self.entities.push(Box::new(ChessBoard::new()));
@@ -300,6 +315,7 @@ impl<'a> Game<'a> {
         let mut exit = Button::with_text(EXIT, "Exit", Event::Exit);
         exit.set_color(Color256::RED);
 
+        self.entities.push(Box::new(DifficultySelector::new()));
         self.entities.push(Box::new(ColorSelector::new()));
         self.entities.push(Box::new(start));
         self.entities.push(Box::new(exit));
