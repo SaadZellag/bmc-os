@@ -14,6 +14,8 @@ impl Color256 {
     pub const GREEN: Color256 = Color256::new(0, 255, 0);
     pub const BLUE: Color256 = Color256::new(0, 0, 255);
 
+    pub const LIGHT_BLUE: Color256 = Color256::new(0, 255, 255);
+
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }

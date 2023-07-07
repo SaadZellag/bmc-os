@@ -22,8 +22,8 @@ use crate::{
         sprite::Sprite,
     },
     entities::{
-        is_checkmate, Button, ChessBoard, EngineEval, PromotionDisplayer, Text, BOARD_X, BOARD_Y,
-        BORDER_SIZE, SQUARE_SIZE,
+        is_checkmate, Button, ChessBoard, ColorSelector, EngineEval, PromotionDisplayer, Text,
+        BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
     },
     events::add_event,
     load_sprite, set_pixel,
@@ -31,6 +31,7 @@ use crate::{
 
 const MOUSE_WIDTH: usize = 7;
 const MOUSE_HEIGHT: usize = 10;
+
 const MOUSE: Sprite = load_sprite!("../sprites/Mouse.data", MOUSE_WIDTH);
 
 const MAX_ENGINE_DEPTH: u8 = 6;
@@ -66,6 +67,7 @@ pub enum Event {
     PlayMove(cozy_chess::Move),
     DisplayPromotion(cozy_chess::Square, cozy_chess::Square), // From to dest Square for the struct
     StartEngineSearch(u8),                                    // depth
+    SetPlayerColor(cozy_chess::Color),
 }
 
 pub struct Shareable {
@@ -76,6 +78,13 @@ pub struct Shareable {
     pub in_promotion: bool,
     pub engine_eval: Eval,
     pub engine_thinking: bool,
+    pub user_color: cozy_chess::Color,
+}
+
+impl Shareable {
+    pub fn should_flip(&self) -> bool {
+        self.user_color == cozy_chess::Color::Black
+    }
 }
 
 pub struct Game<'a> {
@@ -123,6 +132,7 @@ impl<'a> Game<'a> {
                 in_promotion: false,
                 engine_eval: Eval::NEUTRAL,
                 engine_thinking: false,
+                user_color: cozy_chess::Color::White,
             },
             history: Vec::new(),
             engine,
@@ -156,6 +166,7 @@ impl<'a> Game<'a> {
                 hlt()
             },
             Event::StartEngineSearch(depth) => self.start_engine_search(*depth),
+            Event::SetPlayerColor(color) => self.shared.user_color = *color,
         }
     }
 
@@ -187,7 +198,7 @@ impl<'a> Game<'a> {
         self.history.push(board.hash());
         board.play(mv);
 
-        if board.side_to_move() == cozy_chess::Color::Black && !is_checkmate(board) {
+        if board.side_to_move() != self.shared.user_color && !is_checkmate(board) {
             self.engine.set_position(board.clone(), &self.history);
             self.engine.mut_handler().res = None;
             add_event(Event::StartEngineSearch(1))
@@ -226,6 +237,10 @@ impl<'a> Game<'a> {
 
         self.entities.push(Box::new(ChessBoard::new()));
         self.entities.push(Box::new(EngineEval::new()));
+
+        if self.shared.should_flip() {
+            add_event(Event::StartEngineSearch(1))
+        }
     }
 
     fn end_game(&mut self) {
@@ -243,15 +258,15 @@ impl<'a> Game<'a> {
             height: 16,
         };
 
-        self.entities.push(Box::new(Button::new(
+        self.entities.push(Box::new(Button::with_text(
             GAME_OVER,
             "GAME OVER",
             Event::ReturnToMenu,
         )));
 
-        let (text, color) = match self.shared.board.side_to_move() {
-            cozy_chess::Color::White => ("YOU LOSE", Color256::RED),
-            cozy_chess::Color::Black => ("YOU WIN", Color256::GREEN),
+        let (text, color) = match self.shared.board.side_to_move() == self.shared.user_color {
+            true => ("YOU LOSE", Color256::RED),
+            false => ("YOU WIN", Color256::GREEN),
         };
 
         let mut text = Text::new(GAME_RESULT, text);
@@ -266,25 +281,27 @@ impl<'a> Game<'a> {
         self.entities.clear();
 
         const START: Rectangle = Rectangle {
-            x: 128,
-            y: 64,
-            width: 64,
+            x: (WIDTH - 80) / 2,
+            y: 128,
+            width: 80,
             height: 32,
         };
 
         const EXIT: Rectangle = Rectangle {
-            x: 128,
-            y: 128,
-            width: 64,
+            x: (WIDTH - 80) / 2,
+            y: 192,
+            width: 80,
             height: 32,
         };
 
-        let mut start = Button::new(START, "Start", Event::StartGame);
+        let mut start = Button::with_text(START, "Start", Event::StartGame);
         start.set_color(Color256::GREEN);
-        self.entities.push(Box::new(start));
 
-        let mut exit = Button::new(EXIT, "Exit", Event::Exit);
+        let mut exit = Button::with_text(EXIT, "Exit", Event::Exit);
         exit.set_color(Color256::RED);
+
+        self.entities.push(Box::new(ColorSelector::new()));
+        self.entities.push(Box::new(start));
         self.entities.push(Box::new(exit));
 
         self.shared.state = State::Menu;

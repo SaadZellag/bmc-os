@@ -60,6 +60,8 @@ const PIECE_CAPTURE: Sprite = load_sprite!("../sprites/PieceCapture.data", SQUAR
 const KING_BLUSH: Sprite = load_sprite!("../sprites/KingBlush.data", SQUARE_SIZE);
 
 const ENGINE_THINKING: Sprite = load_sprite!("../sprites/EngineThinking.data", 40);
+const CHOOSE_WHITE_SPRITE: Sprite = load_sprite!("../sprites/White.data", 32);
+const CHOOSE_BLACK_SPRITE: Sprite = load_sprite!("../sprites/Black.data", 32);
 
 fn piece_sprite(piece: Piece, color: Color) -> &'static Sprite {
     match (color, piece) {
@@ -159,14 +161,26 @@ pub struct Text {
     color: Color256,
 }
 
-pub struct Button {
-    text: Text,
+pub struct Button<E: Entity> {
+    rect: Rectangle,
+    entity: E,
     on_click: Event,
 }
 
 pub struct EngineEval {
     text: Text,
     curr_eval: Eval,
+}
+
+pub struct SpriteEntity {
+    x: usize,
+    y: usize,
+    sprite: &'static Sprite,
+}
+
+pub struct ColorSelector {
+    white_button: Button<SpriteEntity>,
+    black_button: Button<SpriteEntity>,
 }
 
 impl ChessBoard {
@@ -177,7 +191,12 @@ impl ChessBoard {
     }
 
     fn draw_board(&self, shared: &Shareable) {
-        for (i, &square) in Square::ALL.iter().enumerate() {
+        for (i, square) in Square::ALL.iter().enumerate() {
+            let square = if shared.should_flip() {
+                square.flip_rank()
+            } else {
+                *square
+            };
             let piece_sprite = match (shared.board.color_on(square), shared.board.piece_on(square))
             {
                 (Some(color), Some(piece)) => piece_sprite(piece, color),
@@ -194,7 +213,10 @@ impl ChessBoard {
         // King blush if in check :3
         if shared.board.checkers().len() != 0 {
             let stm = shared.board.side_to_move();
-            let sq = shared.board.king(stm);
+            let mut sq = shared.board.king(stm);
+            if shared.should_flip() {
+                sq = sq.flip_rank();
+            }
             let (x, y) = to_xy(BOARD_X, BOARD_Y, sq as usize);
             draw_sprite(&KING_BLUSH, x, y);
         }
@@ -205,13 +227,23 @@ impl ChessBoard {
 
         // Selected square
         let square = self.square_selected.unwrap();
-        let (x, y) = to_xy(BOARD_X, BOARD_Y, square as usize);
+        let display_square = if shared.should_flip() {
+            square.flip_rank()
+        } else {
+            square
+        };
+        let (x, y) = to_xy(BOARD_X, BOARD_Y, display_square as usize);
 
         draw_sprite(&PIECE_SELECTED, x, y);
 
         // Destination squares
         for_each_move(square, &shared.board, |mv| {
-            let (x, y) = to_xy(BOARD_X, BOARD_Y, mv.to as usize);
+            let display_square = if shared.should_flip() {
+                mv.to.flip_rank()
+            } else {
+                mv.to
+            };
+            let (x, y) = to_xy(BOARD_X, BOARD_Y, display_square as usize);
 
             let sprite = if shared.board.piece_on(mv.to).is_some() {
                 &PIECE_CAPTURE
@@ -254,16 +286,37 @@ impl Text {
     }
 }
 
-impl Button {
-    pub fn new(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+impl<E: Entity> Button<E> {
+    pub fn new(rect: Rectangle, entity: E, on_click: Event) -> Self {
         Self {
-            text: Text::new(rect, text),
+            rect,
+            entity,
+            on_click,
+        }
+    }
+}
+
+impl Button<Text> {
+    pub fn with_text(rect: Rectangle, text: &'static str, on_click: Event) -> Self {
+        Self {
+            rect,
+            entity: Text::new(rect, text),
             on_click,
         }
     }
 
     pub fn set_color(&mut self, color: Color256) {
-        self.text.set_color(color);
+        self.entity.set_color(color);
+    }
+}
+
+impl Button<SpriteEntity> {
+    pub fn with_sprite(rect: Rectangle, sprite: &'static Sprite, on_click: Event) -> Self {
+        Self {
+            rect,
+            entity: SpriteEntity::new(rect.x, rect.y, sprite),
+            on_click,
+        }
     }
 }
 
@@ -311,6 +364,46 @@ impl EngineEval {
     }
 }
 
+impl SpriteEntity {
+    pub fn new(x: usize, y: usize, sprite: &'static Sprite) -> Self {
+        Self { x, y, sprite }
+    }
+}
+
+impl ColorSelector {
+    pub fn new() -> Self {
+        const CHOOSE_WHITE: Rectangle = Rectangle {
+            x: (WIDTH - 80) / 2,
+            y: 64,
+            width: 32,
+            height: 32,
+        };
+
+        const CHOOSE_BLACK: Rectangle = Rectangle {
+            x: (WIDTH + 80) / 2 - 32,
+            y: 64,
+            width: 32,
+            height: 32,
+        };
+
+        let white_button = Button::with_sprite(
+            CHOOSE_WHITE,
+            &CHOOSE_WHITE_SPRITE,
+            Event::SetPlayerColor(cozy_chess::Color::White),
+        );
+        let black_button = Button::with_sprite(
+            CHOOSE_BLACK,
+            &CHOOSE_BLACK_SPRITE,
+            Event::SetPlayerColor(cozy_chess::Color::Black),
+        );
+
+        Self {
+            white_button,
+            black_button,
+        }
+    }
+}
+
 impl Entity for ChessBoard {
     fn handle_event(&mut self, event: &Event, shared: &Shareable) {
         if shared.state == State::GameOver {
@@ -337,7 +430,11 @@ impl Entity for ChessBoard {
         // Valid square has been selected in the board
 
         let sq_index = board_x + 8 * (7 - board_y);
-        let selected = Square::index(sq_index);
+        let mut selected = Square::index(sq_index);
+
+        if shared.should_flip() {
+            selected = selected.flip_rank();
+        }
 
         match self.square_selected {
             // Clicking on same square
@@ -433,20 +530,20 @@ impl Entity for Text {
     }
 }
 
-impl Entity for Button {
+impl<E: Entity> Entity for Button<E> {
     fn handle_event(&mut self, event: &Event, shared: &Shareable) {
         if !is_mouse_click(event) {
             return;
         }
 
         let point = (shared.mouse_x as usize, shared.mouse_y as usize);
-        if contains_point(&self.text.rect, point) {
+        if contains_point(&self.rect, point) {
             add_event(self.on_click.clone());
         }
     }
 
     fn draw(&self, shared: &Shareable) {
-        self.text.draw(shared)
+        self.entity.draw(shared)
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {
@@ -468,6 +565,41 @@ impl Entity for EngineEval {
 
     fn draw(&self, shared: &Shareable) {
         self.text.draw(shared);
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
+    }
+}
+
+impl Entity for SpriteEntity {
+    fn handle_event(&mut self, _: &Event, _: &Shareable) {}
+
+    fn draw(&self, _: &Shareable) {
+        draw_sprite(self.sprite, self.x, self.y)
+    }
+
+    fn to_delete(&self, _: &Shareable) -> bool {
+        false
+    }
+}
+
+impl Entity for ColorSelector {
+    fn handle_event(&mut self, event: &Event, shared: &Shareable) {
+        self.white_button.handle_event(event, shared);
+        self.black_button.handle_event(event, shared);
+    }
+
+    fn draw(&self, shared: &Shareable) {
+        self.white_button.draw(shared);
+        self.black_button.draw(shared);
+        let rect = match shared.user_color {
+            cozy_chess::Color::White => self.white_button.rect,
+            cozy_chess::Color::Black => self.black_button.rect,
+        };
+
+        set_graphics_color(Color256::LIGHT_BLUE);
+        draw_shape(&rect);
     }
 
     fn to_delete(&self, _: &Shareable) -> bool {

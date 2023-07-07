@@ -65,6 +65,7 @@ pub trait Shape {
     fn points(&self) -> Self::Output;
 }
 
+#[derive(Clone, Copy)]
 pub struct Rectangle {
     pub x: usize,
     pub y: usize,
