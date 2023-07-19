@@ -1,5 +1,7 @@
 # BMC-OS
 
+![Main menu](imgs/main-menu.png)
+
 This project is a custom OS that followed the structure from [Blog OS](https://github.com/phil-opp/blog_os). It is an OS to play the game of chess against my own custom engine.
 
 It was made in ~50 days during a 100 day coding challenge. Where the goal was to consistently code at least 1h every day. The name `BMC-OS` is an acronym for Bare Metal CARL where CARL is the name of my chess engine.
@@ -10,6 +12,7 @@ It was made in ~50 days during a 100 day coding challenge. Where the goal was to
 - Engine eval when playing against it
 - Engine difficulty selector
 
+![Start of a game](imgs/start-game.png)
 
 # How to run it
 ## Prerequisites
