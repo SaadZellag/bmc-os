@@ -97,6 +97,6 @@ fn sigmoid(val: i32) -> i32 {
 fn test_sigmoid() {
     assert_eq!(sigmoid(0), 126);
 
-    assert_eq!(sigmoid(100000000), 127);
+    assert_eq!(sigmoid(100000000), 255);
     assert_eq!(sigmoid(-100000000), 0);
 }
