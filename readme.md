@@ -31,3 +31,5 @@ panicked at 'called `Result::unwrap()` on an `Err` value: "mouse did not respond
 ```
 
 Sometimes running the script without the `--release` flag and running it again with said flag would fix the issue, I will have to look into it, but for now *it's a feature :)*
+
+![Game over](imgs/game-over.png)
