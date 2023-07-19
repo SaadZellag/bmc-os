@@ -2,6 +2,8 @@
 
 This project is a custom OS that followed the structure from [Blog OS](https://github.com/phil-opp/blog_os). It is an OS to play the game of chess against my own custom engine.
 
+It was made in ~50 days during a 100 day coding challenge. Where the goal was to consistently code at least 1h every day.
+
 ## Features:
 - Full chess game playable
 - 2200-ish computer rated engine to play against (rating may change due to the change in environment)
