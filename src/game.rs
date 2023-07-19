@@ -22,8 +22,14 @@ use crate::{
         sprite::Sprite,
     },
     entities::{
-        is_checkmate, Button, ChessBoard, ColorSelector, DifficultySelector, EngineEval,
-        PromotionDisplayer, Text, BOARD_X, BOARD_Y, BORDER_SIZE, SQUARE_SIZE,
+        button::Button,
+        chessboard::{is_checkmate, ChessBoard, BOARD_X, BOARD_Y, BORDER_SIZE},
+        colorselector::ColorSelector,
+        difficultyselector::DifficultySelector,
+        engineeval::EngineEval,
+        enginethinking::EngineThinking,
+        promotion::PromotionDisplayer,
+        text::Text,
     },
     events::add_event,
     load_sprite, set_pixel,
@@ -252,6 +258,7 @@ impl<'a> Game<'a> {
 
         self.entities.push(Box::new(ChessBoard::new()));
         self.entities.push(Box::new(EngineEval::new()));
+        self.entities.push(Box::new(EngineThinking));
 
         if self.shared.should_flip() {
             add_event(Event::StartEngineSearch(1))
