@@ -205,7 +205,8 @@ fn test_acc_update() {
         let acc = NNUEAccumulator::new(&board, &EVALUATOR);
 
         for mv in MoveGen::new_legal(&board) {
-            let new_board = board.make_move_new(mv);
+            let mut new_board = board.clone();
+            new_board.play_unchecked(mv);
             let new_acc = acc.update(&EVALUATOR, &board, &new_board, mv);
 
             assert_eq!(

@@ -124,11 +124,15 @@ fn test_table() {
     let pos = Position::new(Board::default(), &EVALUATOR);
 
     let mut entry = TTEntry {
-        hash: pos.board().get_hash(),
+        hash: pos.board().hash(),
         flag: EntryType::Exact,
         depth: 7,
         eval: Eval::NEUTRAL,
-        mv: Move::default(),
+        mv: Move {
+            from: Square::A1,
+            to: Square::A1,
+            promotion: None,
+        },
     };
 
     // Checking if insert works
