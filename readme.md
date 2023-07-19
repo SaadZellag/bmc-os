@@ -12,6 +12,10 @@ It was made in ~50 days during a 100 day coding challenge. Where the goal was to
 
 
 # How to run it
+## Prerequisites
+- Rust (Currently using v1.65 but I haven't tested if earlier versions work)
+- A remote desktop software (Used `vncviewer`)
+
 Currently there is a `./run_os.sh --release` script that builds the project, runs it and launches VNC viewer
 
 Another way is to run `cargo run --release` then open up an alternative to VNC viewer on port 5900
