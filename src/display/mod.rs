@@ -3,10 +3,9 @@ use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use vga::{
-    colors::{Color16, TextModeColor},
-    drawing::Point,
+    colors::{TextModeColor},
     vga::VGA,
-    writers::{Graphics320x240x256, Graphics640x480x16, GraphicsWriter, Text80x25, TextWriter},
+    writers::{Graphics320x240x256, GraphicsWriter, Text80x25, TextWriter},
 };
 use x86_64::instructions::interrupts;
 

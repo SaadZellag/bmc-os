@@ -1,6 +1,6 @@
 use alloc::{
     boxed::Box,
-    vec::{self, Vec},
+    vec::{Vec},
 };
 use arrayvec::ArrayVec;
 use cozy_chess::{Board, Move, Square};
@@ -32,7 +32,7 @@ use crate::{
         text::Text,
     },
     events::add_event,
-    load_sprite, set_pixel,
+    load_sprite,
 };
 
 const MOUSE_WIDTH: usize = 7;

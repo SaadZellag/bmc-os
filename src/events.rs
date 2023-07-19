@@ -1,15 +1,14 @@
 use core::{
-    mem::MaybeUninit,
-    sync::atomic::{AtomicBool, AtomicI32, Ordering},
+    sync::atomic::{AtomicI32, Ordering},
 };
 
-use alloc::{collections::VecDeque, vec::Vec};
-use lazy_static::lazy_static;
-use pc_keyboard::DecodedKey;
-use ps2_mouse::MouseState;
-use spin::Mutex;
 
-use crate::{game::Event, println, queue::Queue};
+
+
+
+
+
+use crate::{game::Event, queue::Queue};
 
 static mut EVENTS: SyncQueue<512> = SyncQueue::new();
 

@@ -7,47 +7,15 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
-use arrayvec::ArrayVec;
 use bmc_os::{
     allocator,
-    display::{
-        color::Color256,
-        ensure_graphics_mode,
-        graphics::{draw_shape, draw_sprite, flush_buffer, Triangle, PALETTE},
-        set_graphics_color,
-        sprite::{Sprite, SpriteBlock},
-    },
-    events::{self, add_event, next_event},
+    events::{add_event, next_event},
     game::{Event, Game},
-    load_sprite, load_sprite_block,
     memory::{self, BootInfoFrameAllocator},
-    println, set_pixel,
 };
 use bootloader::{entry_point, BootInfo};
-use cozy_chess::{Board, Color, File, GameStatus, Piece, Rank, Square};
-use engine::search::tt::TTEntry;
 
-use engine::{
-    engine::{Engine, EngineOptions, MAX_DEPTH},
-    handler::SearchHandler,
-    search::{tt::TranspositionTable, SearchSharedState},
-    utils::tablesize::TableSize,
-};
-use vga::{
-    colors::Color16,
-    registers::PlaneMask,
-    vga::VGA,
-    writers::{
-        Graphics320x200x256, Graphics320x240x256, Graphics640x480x16, GraphicsWriter, Text80x25,
-        TextWriter,
-    },
-};
-use x86_64::{
-    instructions::interrupts,
-    structures::paging::{PageTable, Translate},
-    VirtAddr,
-};
+use x86_64::VirtAddr;
 
 use core::panic::PanicInfo;
 
@@ -63,7 +31,8 @@ fn panic(info: &PanicInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    use bmc_os::set_text_color;
+    use bmc_os::{println, set_text_color};
+    use vga::colors::Color16;
 
     set_text_color!(Color16::Red, Color16::Black);
     println!("{}", info);

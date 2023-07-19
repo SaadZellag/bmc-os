@@ -5,7 +5,7 @@ use crate::{
     game::{Entity, Event, Shareable, State},
     load_sprite,
 };
-use cozy_chess::{Board, BoardBuilder, Color, File, Move, Piece, Rank, Square};
+use cozy_chess::{Board, Color, Piece, Square};
 
 pub const SQUARE_SIZE: usize = 20;
 pub const BORDER_SIZE: usize = 4;

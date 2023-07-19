@@ -1,11 +1,11 @@
 use crate::{
-    display::get_current_text_color, events::add_event, game::Event, gdt, print, println,
+    display::get_current_text_color, events::add_event, game::Event, gdt, println,
     set_text_color,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use ps2_mouse::{Mouse, MouseState};
-use spin::{self, Lazy, Mutex};
+use spin::{self, Mutex};
 use vga::colors::Color16;
 use x86_64::{
     instructions::{interrupts, port::PortReadOnly},

@@ -16,7 +16,7 @@ const ENGINE_THINKING_Y: usize = ENGINE_EVAL_Y + SQUARE_SIZE * 2;
 pub struct EngineThinking;
 
 impl Entity for EngineThinking {
-    fn handle_event(&mut self, event: &crate::game::Event, shared: &crate::game::Shareable) {}
+    fn handle_event(&mut self, _event: &crate::game::Event, _shared: &crate::game::Shareable) {}
 
     fn draw(&self, shared: &crate::game::Shareable) {
         if shared.engine_thinking {
@@ -24,7 +24,7 @@ impl Entity for EngineThinking {
         }
     }
 
-    fn to_delete(&self, shared: &crate::game::Shareable) -> bool {
+    fn to_delete(&self, _shared: &crate::game::Shareable) -> bool {
         false
     }
 }

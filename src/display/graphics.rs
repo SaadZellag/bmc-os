@@ -1,23 +1,23 @@
 use bresenham::Bresenham;
 use lazy_static::lazy_static;
-use spin::Mutex;
+
 use vga::{
     colors::PALETTE_SIZE,
     drawing::Point,
     registers::PlaneMask,
     vga::VGA,
-    writers::{Graphics320x240x256, GraphicsWriter},
+    writers::{GraphicsWriter},
 };
-use x86_64::instructions::interrupts;
+
 
 use crate::{
     display::{
         color::Color256,
-        ensure_graphics_mode, get_current_graphics_color, get_current_text_color,
+        ensure_graphics_mode, get_current_graphics_color,
         sprite::{PixelInfo, Sprite, SpriteBlock},
         CURRENT_GRAPHICS_COLOR, DRAWER,
     },
-    load_sprite_block, println,
+    load_sprite_block,
 };
 
 pub const CHAR_WIDTH: usize = 8;

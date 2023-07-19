@@ -1,7 +1,7 @@
-use alloc::{boxed::Box, vec};
+
 use vga::drawing::Point;
 
-use crate::{display::color::Color256, print, println};
+use crate::{display::color::Color256};
 
 // Assumes that the image is from RAW GIMP data
 // Just a bunch of RGBA pixels
