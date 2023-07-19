@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, vec};
-use arrayvec::ArrayVec;
-use core::iter::FromIterator;
 
-use crate::{engine::EVALUATOR, search::position::Position, utils::tablesize::TableSize, Eval};
+
+
+use crate::{search::position::Position, utils::tablesize::TableSize, Eval};
 
 use cozy_chess::{Move, Square};
 

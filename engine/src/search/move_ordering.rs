@@ -1,8 +1,7 @@
 use arrayvec::ArrayVec;
-use cozy_chess::{BitBoard, Board, Move, Piece};
+use cozy_chess::{BitBoard, Board, Move};
 
 use crate::{
-    engine::MAX_DEPTH,
     handler::SearchHandler,
     search::{position::Position, see::static_exchange, SearchSharedState},
     EvalType,
@@ -32,7 +31,7 @@ fn score_move<H: SearchHandler>(
     shared: &SearchSharedState<H>,
 ) -> MoveScore {
     let board = pos.board();
-    let attacker = board.piece_on(mv.from).expect("Invalid board");
+    let _attacker = board.piece_on(mv.from).expect("Invalid board");
     let victim = board.piece_on(mv.to);
 
     for killer in shared.killers[pos.ply() as usize] {

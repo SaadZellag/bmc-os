@@ -1,6 +1,6 @@
 use cozy_chess::{Color, Piece, Square};
 
-use crate::{for_loop, utils::chessutils::SquareUtils};
+use crate::utils::chessutils::SquareUtils;
 
 pub trait FeatureSet {
     const TOTAL_FEATURES: usize;
